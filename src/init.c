@@ -6,6 +6,7 @@
  **************************************************************/
 
 #include <stdlib.h>
+#include "system.h"
 #include "process.h"
 #include "http.h"
 #include "init.h"
@@ -27,6 +28,10 @@ int links_init(lua_State *L){
   lua_getfield(L, -1, "preload");
   lua_remove(L, -2);
 
+  /*system*/
+  lua_pushcfunction(L, luaopen_system);
+  lua_setfield(L, -2, "system");
+ 
   /*process*/
   lua_pushcfunction(L, luaopen_process);
   lua_setfield(L, -2, "process");

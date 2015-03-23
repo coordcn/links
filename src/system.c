@@ -55,10 +55,8 @@ static int links_system_meminfo(lua_State* L){
   uint64_t free = uv_get_free_memory();
   
   lua_createtable(L, 0, 2);
-
   lua_pushinteger(L, total);
   lua_setfield(L, -2, "total");
-
   lua_pushinteger(L, free);
   lua_setfield(L, -2, "free");
 
@@ -70,7 +68,6 @@ static int links_system_loadavg(lua_State* L){
   uv_loadavg(loadavg);
   
   lua_createtable(L, 3, 0);
-
   lua_pushnumber(L, loadavg[0]);
   lua_rawseti(L, -2, 1);
   lua_pushnumber(L, loadavg[1]);
