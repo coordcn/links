@@ -5,14 +5,8 @@
   @overview: 
  **************************************************************/
 
-#ifndef LINKS_HTTP_H
-#define LINKS_HTTP_H
+#include "links.h"
 
-#include "lua.h"
-#include "lualib.h"
-#include "lauxlib.h"
-#include "uv.h"
-
-int luaopen_http(lua_State* L);
-
-#endif /*LINKS_HTTP_H*/
+int links_cannot_change(lua_State* L){
+  return luaL_error(L, "table fields cannot be changed.");
+}

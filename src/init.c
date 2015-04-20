@@ -5,23 +5,16 @@
   @overview: 
  **************************************************************/
 
-#include <stdlib.h>
-#include "system.h"
-#include "process.h"
-#include "http.h"
 #include "init.h"
+#include "links.h"
+#include <stdlib.h>
 
-static char links_main_thread;
-static char links_main_loop;
+static uint64_t links_start_time;
+static lua_State* links_main_thread;
 
 int links_init(lua_State *L){
-  uv_loop_t* loop = uv_default_loop();
-
-  lua_pushthread(L);
-  lua_rawsetp(L, LUA_REGISTRYINDEX, &links_main_thread);
-  
-  lua_pushlightuserdata(L, loop);
-  lua_rawsetp(L, LUA_REGISTRYINDEX, &links_main_loop);
+  links_start_time = uv_now(uv_default_loop());
+  links_main_thread = L;
 
   /*preload*/
   lua_getglobal(L, "package");
@@ -45,22 +38,10 @@ int links_init(lua_State *L){
   return 0;
 }
 
-lua_State* links_get_main_thread(lua_State *L){
-  lua_State *main_thread;
-  
-  lua_rawgetp(L, LUA_REGISTRYINDEX, &links_main_thread);
-  main_thread = lua_tothread(L, -1);
-  lua_pop(L, 1);
-  
-  return main_thread;
+lua_State* links_get_main_thread(){
+  return links_main_thread;
 }
 
-uv_loop_t* links_get_main_loop(lua_State *L) {
-  uv_loop_t *loop;
-  
-  lua_rawgetp(L, LUA_REGISTRYINDEX, &links_main_loop);
-  loop = lua_touserdata(L, -1);
-  lua_pop(L, 1);
-  
-  return loop;
+uint64_t links_get_start_time(){
+  return links_start_time;
 }

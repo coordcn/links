@@ -5,12 +5,12 @@
   @overview: 
  **************************************************************/
 
-#include <string.h>
 #include <assert.h>
 #include <stdlib.h>
-#include <limits.h> /* PATH_MAX */
+#include <string.h>
 
 #include "init.h"
+#include "lualib.h"
 
 int main(int argc, char *argv[]) {
   lua_State *L;
@@ -18,26 +18,28 @@ int main(int argc, char *argv[]) {
   argv = uv_setup_args(argc, argv);
   
   L = luaL_newstate();
-  if (L == NULL) {
-    fprintf(stderr, "Cannot create lua_State: Not enough memory.\n");
+  if(L == NULL){
+    fprintf(stderr, "no more memory for main thread\n");
     return 1;
   }
   
   luaL_openlibs(L);
 
-  if (links_init(L)) {
-    fprintf(stderr, "links_init(L) failed.\n");
+  if(links_init(L)){
+    fprintf(stderr, "links_init(L) failed\n");
     return 1;
   }
-  
+
   const char* fname = argv[1];
-  if (luaL_dofile(L, fname)) {
+  if(luaL_dofile(L, fname)){
     printf("%s\n", lua_tostring(L, -1));
     lua_pop(L, 1);
     lua_close(L);
     return -1;
   }
   
+  uv_run(uv_default_loop(), UV_RUN_DEFAULT);
+
   lua_close(L);
   return 0;
 }

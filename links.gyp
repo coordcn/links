@@ -34,6 +34,7 @@
         ]
       },
       'sources': [
+        'src/util.c',
         'src/system.c',
         'src/process.c',
         'src/http.c',

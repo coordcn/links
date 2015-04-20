@@ -5,17 +5,17 @@
   @overview: 
  **************************************************************/
 
-#include <stdio.h>
+#include "init.h"
+#include "links.h"
 #include <string.h>
-# include <sys/utsname.h>
-
-#include "system.h"
+#include <sys/utsname.h>
 
 static int links_system_cpuinfo(lua_State* L){
   uv_cpu_info_t* cpu_infos;
-  int count, i, index;
+  int count, i, index, err;
 
-  if(uv_cpu_info(&cpu_infos, &count)) return luaL_error(L, "system.cpuinfo() error.");
+  err = uv_cpu_info(&cpu_infos, &count);
+  if(err < 0) return luaL_error(L, "system.cpuinfo() [uv_error] %s: %s", uv_err_name(err), uv_strerror(err));
 
   lua_createtable(L, count, 0);
   for(i = 0; i < count; i++){
@@ -82,22 +82,18 @@ static int links_system_loadavg(lua_State* L){
 static int links_system_hrtime(lua_State* L){
   uint64_t hrtime = uv_hrtime();
   lua_pushinteger(L, hrtime);
-
   return 1;
 }
 
 /*seconds*/
 static int links_system_uptime(lua_State* L){
   double uptime;
-  if(uv_uptime(&uptime)) return luaL_error(L, "system.uptime() error.");
+  int err = uv_uptime(&uptime);
+  if(err < 0)return luaL_error(L, "system.uptime() [uv_error] %s: %s", uv_err_name(err), uv_strerror(err));
   
   lua_pushnumber(L, uptime);
 
   return 1;
-}
-
-static int links_cannot_change(lua_State* L){
-  return luaL_error(L, "table fields cannot be changed.");
 }
 
 int luaopen_system(lua_State *L){
@@ -134,16 +130,17 @@ int luaopen_system(lua_State *L){
   lua_createtable(L, 0, 0);
 
   luaL_newlib(L, lib);
+  lua_pushvalue(L, -1);
+  lua_setfield(L, -2, "__index");
+  lua_pushliteral(L, "metatable is protected.");
+  lua_setfield(L, -2, "__metatable");
+
   lua_pushlstring(L, type, strlen(type));
   lua_setfield(L, -2, "type");
   lua_pushlstring(L, release, strlen(release));
   lua_setfield(L, -2, "release");
   lua_pushlstring(L, endian, 2);
   lua_setfield(L, -2, "endian");
-  lua_pushvalue(L, -1);
-  lua_setfield(L, -2, "__index");
-  lua_pushliteral(L, "metatable is protected.");
-  lua_setfield(L, -2, "__metatable");
 
   lua_setmetatable(L, -2);
 

@@ -5,14 +5,15 @@
   @overview: 
  **************************************************************/
 
-#ifndef LINKS_SYSTEM_H
-#define LINKS_SYSTEM_H
+#ifndef LINKS_LINKS_H
+#define LINKS_LINKS_H
 
 #include "lua.h"
-#include "lualib.h"
 #include "lauxlib.h"
 #include "uv.h"
 
-int luaopen_system(lua_State *L);
+lua_State* links_get_main_thread();
 
-#endif /*LINKS_SYSTEM_H*/
+int links_cannot_change(lua_State* L);
+
+#endif /*LINKS_LINKS_H*/

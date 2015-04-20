@@ -7,21 +7,9 @@
 
 #include "init.h"
 #include "links.h"
-#include <stdlib.h>
 
-static int links_http_create_server(lua_State* L){
-  printf("test hello.");
-
-  return 1;
-}
-
-/*static int links_cannot_change(lua_State* L){*/
-/*return luaL_error(L, "table fields cannot be changed.");*/
-/*}*/
-
-int luaopen_http(lua_State *L){
+int luaopen_tcp(lua_State *L){
   luaL_Reg lib[] = {
-    { "createServer", links_http_create_server},
     { "__newindex", links_cannot_change},
     { NULL, NULL}
   };
