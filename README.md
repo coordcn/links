@@ -1,13 +1,13 @@
-# links
-##http server base on lua + libuv
+# [links](https://github.com/coordcn/links)
+####http server base on lua + libuv
 
-##项目灵感来自fibjs和openresty。
+####项目灵感来自[fibjs](http://fibjs.org/)和[openresty](http://openresty.org/)。
 
-##实现目标：通过对coroutine包装实现同步代码编写异步程序，lua代码实现***形式同步***，c代码实现***实质异步***。
+####实现目标：通过对coroutine包装实现同步代码编写异步程序，lua代码实现[形式同步]，c代码实现[实质异步]。
 
-##开发模式：需求驱动
+####开发模式：需求驱动
 
-第一阶段工作 预计三个月完成
+第一阶段工作：http1.1 预计三个月完成
 
 ##模块
 ###system
