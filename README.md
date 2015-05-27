@@ -46,13 +46,13 @@ dns.resolve6(hostname)
 
 ####tcp 进行中
 
-####http 待实现
+####http
 
-####websocket 待实现
+####websocket
 
 以下模块采用迭代开发模式，逐步完善
 
-####https 待实现
+####https
 
 ####redis
 
