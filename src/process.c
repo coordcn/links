@@ -8,17 +8,6 @@
 #include "init.h"
 #include "links.h"
 
-/*PATH_MAX*/
-#include <limits.h>
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <sched.h>
-#include <inttypes.h>
-#include <sys/types.h>
-#include <sys/resource.h>
-
 typedef struct {
   int cpu;
   int options_ref;
@@ -100,7 +89,9 @@ static int links_process_fork(lua_State* L){
   if(!links_process_exepath_ptr){
     size_t length = sizeof(links_process_exepath);
     int err = uv_exepath(links_process_exepath, &length);
-    if(err < 0) return luaL_error(L, "process.fork(options) uv_error %s: %s", uv_err_name(err), uv_strerror(err));
+    if(err < 0){
+      return luaL_error(L, "process.fork(options) uv_error %s: %s", uv_err_name(err), uv_strerror(err));
+    }
 
     links_process_exepath_ptr = links_process_exepath;
   }
@@ -123,8 +114,7 @@ static int links_process_fork(lua_State* L){
     args = malloc(sizeof(char*) * (args_length + 3));
     if(!args) return luaL_error(L, "process.fork(options) no more memory for args.");
 
-    size_t i;
-    for(i = 1; i <= args_length; ++i){
+    for(int i = 1; i <= args_length; ++i){
       lua_rawgeti(L, -1, i);
       args[i + 1] = (char*)lua_tostring(L, -1);
       lua_pop(L, 1);

@@ -5,10 +5,6 @@
   @overview: 
  **************************************************************/
 
-#include <assert.h>
-#include <stdlib.h>
-#include <string.h>
-
 #include "init.h"
 #include "lualib.h"
 
@@ -25,7 +21,7 @@ int main(int argc, char *argv[]) {
   
   luaL_openlibs(L);
 
-  if(links_init(L)){
+  if(links_init(L, argc, argv)){
     fprintf(stderr, "links_init(L) failed\n");
     return 1;
   }
@@ -41,5 +37,6 @@ int main(int argc, char *argv[]) {
   uv_run(uv_default_loop(), UV_RUN_DEFAULT);
 
   lua_close(L);
+
   return 0;
 }

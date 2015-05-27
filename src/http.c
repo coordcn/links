@@ -7,7 +7,6 @@
 
 #include "init.h"
 #include "links.h"
-#include <stdlib.h>
 
 static int links_http_create_server(lua_State* L){
   printf("test hello.");

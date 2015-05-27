@@ -7,20 +7,17 @@
 
 #include "init.h"
 #include "links.h"
-#include <string.h>
-#include <sys/utsname.h>
 
 static int links_system_cpuinfo(lua_State* L){
   uv_cpu_info_t* cpu_infos;
-  int count, i, index, err;
+  int count;
 
-  err = uv_cpu_info(&cpu_infos, &count);
+  int err = uv_cpu_info(&cpu_infos, &count);
   if(err < 0) return luaL_error(L, "system.cpuinfo() [uv_error] %s: %s", uv_err_name(err), uv_strerror(err));
 
   lua_createtable(L, count, 0);
-  for(i = 0; i < count; i++){
+  for(int i = 0; i < count; i++){
     uv_cpu_info_t* ci = cpu_infos + i;
-    index = i + 1;
 
     lua_createtable(L, 0, 3);
     lua_pushlstring(L, ci->model, strlen(ci->model));
@@ -42,7 +39,7 @@ static int links_system_cpuinfo(lua_State* L){
 
     lua_setfield(L, -2, "times");
 
-    lua_rawseti(L, -2, index);
+    lua_rawseti(L, -2, i + 1);
   }
 
   uv_free_cpu_info(cpu_infos, count);
@@ -85,7 +82,7 @@ static int links_system_hrtime(lua_State* L){
   return 1;
 }
 
-/*seconds*/
+/*seconds ?*/
 static int links_system_uptime(lua_State* L){
   double uptime;
   int err = uv_uptime(&uptime);
