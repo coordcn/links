@@ -11,7 +11,38 @@
 static uint64_t links_start_time;
 static lua_State* links_main_thread;
 
+/*node.js*/
+static void links_platform_init(){
+  /*ignore SGPIPE*/
+  struct sigaction sa;
+  links_memzero(&sa, sizeof(struct sigaction));
+  sa.sa_handler = SIG_IGN;
+  int ret = sigaction(SIGPIPE, &sa, NULL);
+  assert(ret == 0);
+
+  /*raise the open file descriptor limit*/
+  struct rlimit limit;
+  if(getrlimit(RLIMIT_NOFILE, &limit) == 0 && limit.rlim_cur != limit.rlim_max){
+    /*binary search*/
+    rlim_t min = limit.rlim_cur;
+    rlim_t max = 1 << 20;
+    if(limit.rlim_max != RLIM_INFINITY){
+      min = limit.rlim_max;
+      max = limit.rlim_max;
+    }
+    do {
+      limit.rlim_cur = min + (max - min) / 2;
+      if(setrlimit(RLIMIT_NOFILE, &limit)){
+        max = limit.rlim_cur;
+      }else{
+        min = limit.rlim_cur;
+      }
+    }while(min + 1 < max);
+  }
+}
+
 int links_init(lua_State *L, int argc, char* argv[]){
+  links_platform_init();
   links_pool_slot_init();
   links_buf_slot_init();
   links_dns_init();
@@ -35,6 +66,10 @@ int links_init(lua_State *L, int argc, char* argv[]){
   /*dns*/
   lua_pushcfunction(L, luaopen_dns);
   lua_setfield(L, -2, "dns");
+  
+  /*tcp*/
+  lua_pushcfunction(L, luaopen_tcp);
+  lua_setfield(L, -2, "tcp");
   
   /*http*/
   lua_pushcfunction(L, luaopen_http);

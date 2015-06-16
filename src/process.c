@@ -48,7 +48,7 @@ static void links_process_idle_dummy(uv_idle_t* handle){
   /*do nothing, only for maintaining event loop.*/
 }
 
-static void links_process_on_exit(uv_process_t* handle, int64_t status, int signal){
+static void links_process_onexit(uv_process_t* handle, int64_t status, int signal){
   if(handle->data){
     links_process_data_t* data = handle->data;
     fprintf(stderr, "process[%d] exit. status: %" PRId64 ", signal: %d, file: %s\n", handle->pid, status, signal, data->options->args[1]);
@@ -56,26 +56,28 @@ static void links_process_on_exit(uv_process_t* handle, int64_t status, int sign
     data->options->file = links_process_exepath_ptr;
     data->options->args[0] = links_process_exepath_ptr;
 
-    uv_process_t* process = (uv_process_t*)malloc(sizeof(uv_process_t));
+    uv_process_t* process = (uv_process_t*)links_malloc(sizeof(uv_process_t));
     if(!process){
       links_process_free_options(data->options);
       luaL_unref(links_get_main_thread(), LUA_REGISTRYINDEX, data->options_ref);
-      free(data);
-      fprintf(stderr, "process[%s] restart no more memory for process\n", data->options->args[1]);
+      links_free(data);
+      fprintf(stderr, "process[%s] restart failed. no more memory for process\n", data->options->args[1]);
     }
-    memset(process, 0, sizeof(uv_process_t));
+    links_memzero(process, sizeof(uv_process_t));
     process->data = data;
 
     int ret = uv_spawn(uv_default_loop(), process, data->options);
     if(ret < 0){
       links_process_free_options(data->options);
       luaL_unref(links_get_main_thread(), LUA_REGISTRYINDEX, data->options_ref);
-      free(data);
+      links_free(data);
       uv_close((uv_handle_t*)process, NULL);
-      fprintf(stderr, "restart process[%s] uv_error %s: %s\n", data->options->args[1], uv_err_name(ret), uv_strerror(ret));
+      fprintf(stderr, "process[%s] restart failed. uv_spawn() error: %s\n", data->options->args[1], uv_strerror(ret));
     }
 
     if(data->cpu >= 0) links_set_affinity(process->pid, data->cpu);
+
+    return;
   }
     
   fprintf(stderr, "process[%d] exit. status: %" PRId64 ", signal: %d\n", handle->pid, status, signal);
@@ -84,13 +86,15 @@ static void links_process_on_exit(uv_process_t* handle, int64_t status, int sign
 }
 
 static int links_process_fork(lua_State* L){
-  luaL_checktype(L, 1, LUA_TTABLE);
+  if(lua_type(L, 1) != LUA_TTABLE){
+    return luaL_argerror(L, 1, "process.fork(options) options must be [table]\n"); 
+  }
 
   if(!links_process_exepath_ptr){
     size_t length = sizeof(links_process_exepath);
     int err = uv_exepath(links_process_exepath, &length);
     if(err < 0){
-      return luaL_error(L, "process.fork(options) uv_error %s: %s", uv_err_name(err), uv_strerror(err));
+      return luaL_error(L, "process.fork(options) uv_exepath error: %s\n", uv_strerror(err));
     }
 
     links_process_exepath_ptr = links_process_exepath;
@@ -101,7 +105,7 @@ static int links_process_fork(lua_State* L){
   if(lua_type(L, -1) == LUA_TSTRING){
     file = lua_tostring(L, -1);
   }else{
-    return luaL_argerror(L, 2, "process.fork(options) options.file is [required] and must be [string]"); 
+    return luaL_argerror(L, 2, "process.fork(options) options.file is [required] and must be [string]\n"); 
   }
   lua_pop(L, 1);
 
@@ -111,20 +115,24 @@ static int links_process_fork(lua_State* L){
   if(lua_type(L, -1) == LUA_TTABLE){
     args_length = lua_rawlen(L, -1);
     /*execpath, file, null => args_length + 3*/
-    args = malloc(sizeof(char*) * (args_length + 3));
-    if(!args) return luaL_error(L, "process.fork(options) no more memory for args.");
+    args = links_malloc(sizeof(char*) * (args_length + 3));
+    if(!args){
+      return luaL_error(L, "process.fork(options) no more memory for args\n");
+    }
 
-    for(int i = 1; i <= args_length; ++i){
+    for(size_t i = 1; i <= args_length; ++i){
       lua_rawgeti(L, -1, i);
-      args[i + 1] = (char*)lua_tostring(L, -1);
+      args[i + 1] = (char*)luaL_checkstring(L, -1);
       lua_pop(L, 1);
     }
   }else if(lua_type(L, -1) == LUA_TNIL){
     /*execpath, file, null => args_length + 3*/
-    args = malloc(sizeof(char*) * 3);
-    if(!args) return luaL_error(L, "process.fork(options) no more memory for args.");
+    args = links_malloc(sizeof(char*) * 3);
+    if(!args){
+      return luaL_error(L, "process.fork(options) no more memory for args\n");
+    }
   }else{
-    return luaL_argerror(L, 2, "process.fork(options) options.args must be [table]"); 
+    return luaL_argerror(L, 2, "process.fork(options) options.args must be [table]\n"); 
   }
   lua_pop(L, 1);
 
@@ -142,13 +150,13 @@ static int links_process_fork(lua_State* L){
     links_process_stdio_ptr = links_process_stdio;
   }
 
-  uv_process_options_t* options = (uv_process_options_t*)malloc(sizeof(uv_process_options_t));
+  uv_process_options_t* options = (uv_process_options_t*)links_malloc(sizeof(uv_process_options_t));
   if(!options){
-    free(args);
-    return luaL_error(L, "process.fork(options) no more memory for options.");
+    links_free(args);
+    return luaL_error(L, "process.fork(options) no more memory for options\n");
   }
-  memset(options, 0, sizeof(uv_process_options_t));
-  options->exit_cb = links_process_on_exit;
+  links_memzero(options, sizeof(uv_process_options_t));
+  options->exit_cb = links_process_onexit;
   options->file = links_process_exepath_ptr;
   options->args = args;
   options->stdio_count = 3;
@@ -160,7 +168,7 @@ static int links_process_fork(lua_State* L){
     options->flags |= UV_PROCESS_SETUID;
   }else if(lua_type(L, -1) != LUA_TNIL){
     links_process_free_options(options);
-    return luaL_argerror(L, 2, "process.fork(options) options.uid must be [number]"); 
+    return luaL_argerror(L, 2, "process.fork(options) options.uid must be [number]\n"); 
   }
   lua_pop(L, 1);
 
@@ -170,7 +178,7 @@ static int links_process_fork(lua_State* L){
     options->flags |= UV_PROCESS_SETGID;
   }else if(lua_type(L, -1) != LUA_TNIL){
     links_process_free_options(options);
-    return luaL_argerror(L, 2, "process.fork(options) options.gid must be [number]"); 
+    return luaL_argerror(L, 2, "process.fork(options) options.gid must be [number]\n"); 
   }
   lua_pop(L, 1);
 
@@ -193,23 +201,23 @@ static int links_process_fork(lua_State* L){
     cpu = lua_tointeger(L, -1);
   }else if(lua_type(L, -1) != LUA_TNIL){
     links_process_free_options(options);
-    return luaL_argerror(L, 2, "process.fork(options) options.cpu must be [number]"); 
+    return luaL_argerror(L, 2, "process.fork(options) options.cpu must be [number]\n"); 
   }
   lua_pop(L, 1);
 
-  uv_process_t* handle = (uv_process_t*)malloc(sizeof(uv_process_t));
+  uv_process_t* handle = (uv_process_t*)links_malloc(sizeof(uv_process_t));
   if(!handle){
     links_process_free_options(options);
-    return luaL_error(L, "process.fork(options) no more memory for handle.");
+    return luaL_error(L, "process.fork(options) no more memory for handle.\n");
   }
-  memset(handle, 0, sizeof(uv_process_t));
+  links_memzero(handle, sizeof(uv_process_t));
 
   links_process_data_t* data = NULL;
   if(forever){
-    data = (links_process_data_t*)malloc(sizeof(links_process_data_t));
+    data = (links_process_data_t*)links_malloc(sizeof(links_process_data_t));
     if(!data){
       links_process_free_options(options);
-      return luaL_error(L, "process.fork(options) no more memory for data.");
+      return luaL_error(L, "process.fork(options) no more memory for data.\n");
     }
     
     lua_pushvalue(L, 1);
@@ -223,9 +231,9 @@ static int links_process_fork(lua_State* L){
   if(ret < 0){
     links_process_free_options(options);
     luaL_unref(L, LUA_REGISTRYINDEX, data->options_ref);
-    free(data);
+    links_free(data);
     uv_close((uv_handle_t*)handle, NULL);
-    return luaL_error(L, "process.fork(options) [uv_error] %s: %s", uv_err_name(ret), uv_strerror(ret));
+    return luaL_error(L, "process.fork(options) uv_spawn() error: %s\n", uv_strerror(ret));
   }
   if(cpu >= 0) links_set_affinity(handle->pid, cpu);
 
@@ -242,14 +250,14 @@ static int links_process_fork(lua_State* L){
 
 static int links_process_exec(lua_State* L){
   const char* cmd;
-  if(lua_type(L, -1) == LUA_TSTRING){
+  if(lua_type(L, 1) == LUA_TSTRING){
     cmd = lua_tostring(L, 1);
   }else{
-    return luaL_argerror(L, 2, "process.exec(cmd) cmd is [required] and must be [string]"); 
+    return luaL_argerror(L, 2, "process.exec(cmd) cmd is [required] and must be [string]\n"); 
   }
 
   /*shell, -c, cmd, null*/
-  char** args = malloc(sizeof(char*) * 4);
+  char** args = links_malloc(sizeof(char*) * 4);
   args[0] = "/bin/sh";
   args[1] = "-c";
   args[2] = (char*)cmd;
@@ -265,30 +273,30 @@ static int links_process_exec(lua_State* L){
     links_process_stdio_ptr = links_process_stdio;
   }
 
-  uv_process_options_t* options = (uv_process_options_t*)malloc(sizeof(uv_process_options_t));
+  uv_process_options_t* options = (uv_process_options_t*)links_malloc(sizeof(uv_process_options_t));
   if(!options){
-    free(args);
-    return luaL_error(L, "process.exec(cmd) no more memory for options.");
+    links_free(args);
+    return luaL_error(L, "process.exec(cmd) no more memory for options\n");
   }
-  memset(options, 0, sizeof(uv_process_options_t));
-  options->exit_cb = links_process_on_exit;
+  links_memzero(options, sizeof(uv_process_options_t));
+  options->exit_cb = links_process_onexit;
   options->file = "/bin/sh";
   options->args = args;
   options->stdio_count = 3;
   options->stdio = links_process_stdio_ptr;
 
-  uv_process_t* handle = (uv_process_t*)malloc(sizeof(uv_process_t));
+  uv_process_t* handle = (uv_process_t*)links_malloc(sizeof(uv_process_t));
   if(!handle){
     links_process_free_options(options);
-    return luaL_error(L, "process.exec(cmd) no more memory for handle.");
+    return luaL_error(L, "process.exec(cmd) no more memory for handle\n");
   }
-  memset(handle, 0, sizeof(uv_process_t));
+  links_memzero(handle, sizeof(uv_process_t));
 
   int ret = uv_spawn(uv_default_loop(), handle, options);
   if(ret < 0){
     links_process_free_options(options);
     uv_close((uv_handle_t*)handle, NULL);
-    return luaL_error(L, "process.exec(cmd) [uv_error] %s: %s", uv_err_name(ret), uv_strerror(ret));
+    return luaL_error(L, "process.exec(cmd) uv_spawn() error: %s\n", uv_strerror(ret));
   }
 
   if(!links_process_idle_ptr){
@@ -307,7 +315,7 @@ static int links_process_cwd(lua_State* L){
   size_t length = sizeof(buf);
 
   int err = uv_cwd(buf, &length);
-  if(err < 0) return luaL_error(L, "process.cwd() [uv_error] %s: %s", uv_err_name(err), uv_strerror(err));
+  if(err < 0) return luaL_error(L, "process.cwd() uv_cwd() error: %s\n", uv_strerror(err));
   lua_pushlstring(L, buf, strlen(buf));
 
   return 1;
@@ -335,7 +343,7 @@ static int links_process_kill(lua_State* L){
 
   if(argc == 2) signal = luaL_checkinteger(L, 2);
   int err = uv_kill(pid, signal);
-  if(err < 0) return luaL_error(L, "process.kill(pid[, signal]) [uv_error] %s: %s", uv_err_name(err), uv_strerror(err));
+  if(err < 0) return luaL_error(L, "process.kill(pid[, signal]) uv_kill() error: %s\n", uv_strerror(err));
 
   return 0;
 }

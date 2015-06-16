@@ -6,7 +6,7 @@ import sys
 
 # TODO: release/debug
 
-root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+root = os.path.dirname(os.path.abspath(__file__))
 build_dir = os.path.join(root, 'out')
 
 def build():

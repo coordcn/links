@@ -81,7 +81,7 @@
           'libraries': [ '-ldl' ],
         }],
         ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="solaris"', {
-          'cflags': [ '--std=c89' ],
+          'cflags': [ '--std=c99' ],
           'defines': [ '_GNU_SOURCE' ]
         }],
       ],

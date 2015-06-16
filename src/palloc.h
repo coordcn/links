@@ -19,7 +19,7 @@
 #define links_palloc(size) links_pool_alloc(size)
 #define links_pfree(p) links_pool_free(p)
 #else
-#define links_palloc(size) links_alloc(size)
+#define links_palloc(size) links_malloc(size)
 #define links_pfree(p) links_free(p)
 #endif
 
@@ -33,6 +33,7 @@ typedef struct {
 
 typedef struct {
   links_pool_block_t* block;
+  size_t magic;
 } links_pool_chunk_t;
 
 typedef struct {

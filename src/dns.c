@@ -218,7 +218,7 @@ static void links_dns_error(lua_State* L, int errorno){
 
   lua_createtable(L, 0, 3);
   lua_pushinteger(L, errorno);
-  lua_setfield(L, -2, "number");
+  lua_setfield(L, -2, "code");
   lua_pushstring(L, err);
   lua_setfield(L, -2, "name");
   lua_pushstring(L, err);
@@ -259,8 +259,12 @@ static void links_dns_queryA_callback(void* data,
 }
 
 static int links_dns_queryA(lua_State* L){
+  if(lua_type(L, 1) != LUA_TSTRING){
+    return luaL_argerror(L, 1, "dns.resolve4(name) name must be [string]"); 
+  }
+
   size_t n;
-  const char* name = luaL_checklstring(L, 1, &n);
+  const char* name = luaL_tolstring(L, 1, &n);
 
   struct hostent* host = (struct hostent*)links_hash_strlower_get(links_dns_ipv4_cache, name, n);
   if(host){
@@ -281,14 +285,14 @@ static int links_dns_queryA(lua_State* L){
              links_dns_queryA_callback,
              arg);
 
-  return lua_yield(L, 2);
+  return lua_yield(L, 0);
 }
 
 static void links_dns_queryAaaa_callback(void* data, 
-                                      int status, 
-                                      int timeouts, 
-                                      unsigned char* buf,
-                                      int len){
+                                         int status, 
+                                         int timeouts, 
+                                         unsigned char* buf,
+                                         int len){
   links_dns_arg_t* arg = (links_dns_arg_t*)data;
   lua_State* L = arg->L;
 
@@ -318,8 +322,12 @@ static void links_dns_queryAaaa_callback(void* data,
 }
 
 static int links_dns_queryAaaa(lua_State* L){
+  if(lua_type(L, 1) != LUA_TSTRING){
+    return luaL_argerror(L, 1, "dns.resolve6(name) name must be [string]"); 
+  }
+
   size_t n;
-  const char* name = luaL_checklstring(L, 1, &n);
+  const char* name = luaL_tolstring(L, 1, &n);
 
   struct hostent* host = (struct hostent*)links_hash_strlower_get(links_dns_ipv6_cache, name, n);
   if(host){
@@ -340,7 +348,7 @@ static int links_dns_queryAaaa(lua_State* L){
              links_dns_queryAaaa_callback,
              arg);
 
-  return lua_yield(L, 2);
+  return lua_yield(L, 0);
 }
 
 int luaopen_dns(lua_State *L){

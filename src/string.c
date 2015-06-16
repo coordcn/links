@@ -10,11 +10,12 @@
 char* links__strndup(const char* src, size_t n){
   char* dst;
 
-  dst = links_malloc(n);
+  dst = links_malloc(n + 1);
   if(!dst){
     return NULL;
   }
 
+  dst[n] = '\0';
   links_memcpy(dst, src, n);
 
   return dst;

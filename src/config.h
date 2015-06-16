@@ -10,6 +10,14 @@
 
 #include "linux_config.h"
 
+#ifndef offset_of
+# define offset_of(type, member) ((intptr_t)((char*)(&(((type*)(0))->member))))
+#endif
+
+#ifndef container_of
+# define container_of(ptr, type, member) ((type*)((char*)(ptr) - offset_of(type, member)))
+#endif
+
 #define links_align(size, alignment) (((size) + (alignment - 1)) & ~(alignment - 1))
 
 #define LINKS_BITS 64
@@ -32,6 +40,6 @@
 #define LINKS_32K_SHIFT 15
 #define LINKS_64K_SHIFT 16
 
-#define LINKS_USE_PALLOC 1
+#define LINKS_USE_PALLOC 0
 
 #endif /*LINKS_CONFIG_H*/

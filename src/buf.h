@@ -14,6 +14,7 @@
 typedef struct {
   links_list_t list;
   size_t slot;
+  size_t size;
   char* start;
   char* end;
   char* pos;
@@ -23,12 +24,12 @@ typedef struct {
 typedef struct {
   links_list_t free_list;
   size_t buf_size;
-  size_t max_free_bufs;
-  size_t free_bufs;
+  uint32_t max_free_bufs;
+  uint32_t free_bufs;
 } links_buf_slot_t;
 
 void links_buf_slot_init();
-void links_buf_set_max_free_bufs(size_t slot, size_t size);
+void links_buf_set_max_free_bufs(size_t size, uint32_t max_free_bufs);
 
 /*size unit is kbytes*/
 links_buf_t* links_buf_alloc(size_t size);

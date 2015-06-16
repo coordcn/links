@@ -6,4 +6,4 @@ if "%VCVARS_VER%" NEQ "120" (
   SET VCVARS_VER=120
 )
 
-msbuild /nologo /property:Configuration=Debug /target:lnx lnx.sln
+msbuild /nologo /property:Configuration=Debug /target:links links.sln

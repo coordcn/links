@@ -16,6 +16,7 @@
 #define links_memset(p, c, size) memset(p, c, size)
 
 #define links_memcpy(dst, src, n) memcpy(dst, src, n)
+#define links_memmove(dst, src, n) memmove(dst, src, n)
 #define links_cpymem(dst, src, n) (((u_char *) memcpy(dst, src, n)) + (n))
 
 #define links_memcmp(s1, s2, n) memcmp((const char*)s1, (const char*)s2, n)

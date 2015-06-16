@@ -13,11 +13,13 @@
 #define LINKS_POOL_SLOT_SIZE 16
 #define LINKS_POOL_CHUNK_STEP 64
 #define LINKS_POOL_CHUNK_STEP_SHIFT LINKS_64_SHIFT
-#define LINKS_POOL_MAX_CHUNK_SIZE (LINKS_POOL_CHUNK_STEP * LINKS_POOL_SLOT_SIZE - LINKS_POINTER_SIZE)
-#define links_pool_slot(size) ((links_align(LINKS_POOL_CHUNK_STEP, (size + LINKS_POINTER_SIZE)) >> LINKS_POOL_CHUNK_STEP_SHIFT) - 1)
+#define LINKS_POOL_MAX_CHUNK_SIZE (LINKS_POOL_CHUNK_STEP * LINKS_POOL_SLOT_SIZE - sizeof(links_pool_chunk_t))
+#define links_pool_slot(size) ((links_align(LINKS_POOL_CHUNK_STEP, (size + sizeof(links_pool_chunk_t))) >> LINKS_POOL_CHUNK_STEP_SHIFT) - 1)
 
 #define LINKS_POOL_MAX_FREE_BLOCKS 64
 #define LINKS_POOL_MAX_CHUNKS_SHIFT 6
+
+#define LINKS_POOL_MAGIC 0xAA55AA55
 
 static links_pool_slot_t links_pool_slots[LINKS_POOL_SLOT_SIZE];
 
@@ -53,7 +55,7 @@ static links_pool_block_t* links_pool_create_block(size_t slot, size_t chunks_sh
   links_list_t* free_list;
   char* start;
   
-  block = (links_pool_block_t*)links_memalign(LINKS_POOL_ALIGNMENT, block_size);
+  block = links_memalign(LINKS_POOL_ALIGNMENT, block_size);
   if(!block){
     return NULL;
   }
@@ -75,9 +77,12 @@ static links_pool_block_t* links_pool_create_block(size_t slot, size_t chunks_sh
 }
 
 void* links_pool_alloc(size_t size){
+  links_pool_chunk_t* chunk;
   if(size > LINKS_POOL_MAX_CHUNK_SIZE){
-    fprintf(stderr, "links_pool_alloc(size: %" PRId64 ") size must be less than %" PRId64 ".\n", size, LINKS_POOL_MAX_CHUNK_SIZE);
-    return NULL;
+    chunk = links_memalign(LINKS_POOL_ALIGNMENT, size);
+    chunk->block = NULL;
+    chunk->magic = LINKS_POOL_MAGIC;
+    return (void*)((char*)chunk + sizeof(links_pool_chunk_t));
   }
 
   size_t slot = links_pool_slot(size);
@@ -89,7 +94,7 @@ void* links_pool_alloc(size_t size){
   if(current){
     if(links_list_is_empty(&current->free_list)){
       /*assert(current.used_chunks == current.max_chunks);*/
-      links_list_insert_tail(&current->node, full_list);
+      links_list_insert_head(&current->node, full_list);
       if(!links_list_is_empty(free_list)){
         current = links_list_entry(free_list->next, links_pool_block_t, node);
         links_pool_slots[slot].current = current;
@@ -114,11 +119,12 @@ void* links_pool_alloc(size_t size){
     links_pool_slots[slot].current = current;
   }
 
-  links_list_t* node;
-  node = current->free_list.next;
+  links_list_t* node = current->free_list.next;
   links_list_remove(node);
   current->used_chunks++;
-  ((links_pool_chunk_t*)node)->block = current;
+  chunk = (links_pool_chunk_t*)node;
+  chunk->block = current;
+  chunk->magic = 0;
 
   return (void*)((char*)node + sizeof(links_pool_chunk_t));
 }
@@ -126,15 +132,22 @@ void* links_pool_alloc(size_t size){
 void links_pool_free(void* p){
   if(p){
     links_pool_chunk_t* chunk = (links_pool_chunk_t*)((char*)p - sizeof(links_pool_chunk_t));
+    if(chunk->magic == LINKS_POOL_MAGIC){
+      links_free(chunk);
+      return;
+    }
+    
+    assert(chunk->magic == 0);
+
     links_pool_block_t* block = chunk->block;
-    links_list_insert_tail((links_list_t*)chunk, &block->free_list);
+    links_list_insert_head((links_list_t*)chunk, &block->free_list);
     block->used_chunks--;
 
     if(block->used_chunks == 0){
       size_t slot = block->slot;
       if(links_pool_slots[slot].current != block){
         if(links_pool_slots[slot].free_blocks < links_pool_slots[slot].max_free_blocks){
-          links_list_insert_tail(&block->node, &links_pool_slots[slot].free_list);
+          links_list_insert_head(&block->node, &links_pool_slots[slot].free_list);
           links_pool_slots[slot].free_blocks++;
         }else{
           links_free(block);
