@@ -40,6 +40,7 @@
 #define LINKS_32K_SHIFT 15
 #define LINKS_64K_SHIFT 16
 
-#define LINKS_USE_PALLOC 0
+#define LINKS_USE_PMEM 1
+#define LINKS_USE_PALLOC 1
 
 #endif /*LINKS_CONFIG_H*/

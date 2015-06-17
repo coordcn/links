@@ -43,7 +43,6 @@ typedef union {
 } links_tcp_req_t;
 
 typedef struct {
-  size_t test;
   uv_tcp_t handle;
   uv_timer_t timer;
   links_tcp_req_t req;
@@ -64,9 +63,15 @@ typedef struct {
 static char links_tcp_server_metatable_key;
 static char links_tcp_socket_metatable_key;
 
+static links_pmem_t links_tcp_socket_pool;
+
+void links_tcp_socket_pool_init(uint32_t max_free_mems){
+  links_pmem_init(&links_tcp_socket_pool, max_free_mems);
+}
+
 /*static void links_tcp_socket_onclose(uv_handle_t* handle);*/
 
-static void links_resume(lua_State* co, int nargs, int self_ref, int thread_ref, const char* name){
+static void links_resume(lua_State* co, int nargs, int self_ref, int thread_ref){
   int ret = lua_resume(co, NULL, nargs);
   const char* error;
 
@@ -121,7 +126,7 @@ static void links_tcp_server_onconnect(uv_stream_t* handle, int status){
   /*socket*/
   links_tcp_socket_t** client_ptr = lua_newuserdata(co, sizeof(links_tcp_socket_t*));
 
-  *client_ptr = links_malloc(sizeof(links_tcp_socket_t));
+  *client_ptr = links_pmem_alloc(&links_tcp_socket_pool, sizeof(links_tcp_socket_t));
   links_tcp_socket_t* client = *client_ptr;
 
   /*socket metatable*/
@@ -135,22 +140,20 @@ static void links_tcp_server_onconnect(uv_stream_t* handle, int status){
   int err = uv_accept(handle, (uv_stream_t*)client_handle);
   if(err){
     luaL_unref(L, LUA_REGISTRYINDEX, thread_ref);
-    links_free(client);
+    links_pmem_free(&links_tcp_socket_pool, client);
     fprintf(stderr, "uv_accept() error: %s\n", uv_strerror(err));
     return;
   }
   
   server->connections++;
   /*fprintf(stderr, "connections: %d\n", server->connections);*/
-    /*uv_close((uv_handle_t*)client_handle, links_tcp_socket_onclose);*/
 
-  /*uv_timer_init(loop, &client->timer);*/
+  uv_timer_init(loop, &client->timer);
   client->timeout = server->timeout;
   client->server = server;
   client->thread = co;
   client->thread_ref = LUA_NOREF;
   lua_pushvalue(co, -1);
-  /*client->self_ref = LUA_NOREF;*/
   client->self_ref = luaL_ref(co, LUA_REGISTRYINDEX);
   client->write_data_ref = LUA_NOREF;
   client->read_buf_size = 16;
@@ -163,8 +166,7 @@ static void links_tcp_server_onconnect(uv_stream_t* handle, int status){
   links_set_flag(client->flag, LINKS_WRITEABLE_SHIFT);
 
   lua_rawgeti(co, LUA_REGISTRYINDEX, server->self_ref);
-  /*lua_xmove(L, co, 3);*/
-  links_resume(co, 2, client->self_ref, thread_ref, "connect");
+  links_resume(co, 2, client->self_ref, thread_ref);
 }
 
 /**
@@ -361,7 +363,7 @@ static void links_tcp_socket_connect_timeout(uv_timer_t* handle){
 
   lua_pushnil(L);
   links_uv_error(L, UV_ETIMEDOUT);
-  links_resume(L, 2, socket->self_ref, socket->thread_ref, "connect_timeout");
+  links_resume(L, 2, socket->self_ref, socket->thread_ref);
 }
 */
 
@@ -383,7 +385,7 @@ static void links_tcp_socket_read_timeout(uv_timer_t* handle){
 
   lua_pushnil(L);
   links_uv_error(L, UV_ETIMEDOUT);
-  links_resume(L, 2, socket->self_ref, socket->thread_ref, "read_timeout");
+  links_resume(L, 2, socket->self_ref, socket->thread_ref);
 }
 
 static void links_tcp_socket_onalloc(uv_handle_t* handle, size_t suggested_size, uv_buf_t* buf){
@@ -422,7 +424,7 @@ static void links_tcp_socket_onread(uv_stream_t* handle, ssize_t nread, const uv
       read_buf->pos += n;
       uv_read_stop((uv_stream_t*)(&socket->handle));
       uv_timer_stop(&socket->timer);
-      links_resume(L, 2, socket->self_ref, socket->thread_ref, "read_ok");
+      links_resume(L, 2, socket->self_ref, socket->thread_ref);
     }
     return;
   }
@@ -438,7 +440,7 @@ static void links_tcp_socket_onread(uv_stream_t* handle, ssize_t nread, const uv
   links_uv_error(L, nread);
   uv_read_stop((uv_stream_t*)(&socket->handle));
   uv_timer_stop(&socket->timer);
-  links_resume(L, 2, socket->self_ref, socket->thread_ref, "read_error");
+  links_resume(L, 2, socket->self_ref, socket->thread_ref);
 }
 
 static int links_tcp_socket_read(lua_State* L){
@@ -528,7 +530,7 @@ static void links_tcp_socket_write_timeout(uv_timer_t* handle){
 
   lua_pushinteger(L, 0);
   links_uv_error(L, UV_ETIMEDOUT);
-  links_resume(L, 2, socket->self_ref, socket->thread_ref, "write_timeout");
+  links_resume(L, 2, socket->self_ref, socket->thread_ref);
 }
 
 static void links_tcp_socket_after_write(uv_write_t* req, int status){
@@ -542,14 +544,14 @@ static void links_tcp_socket_after_write(uv_write_t* req, int status){
     links_clear_flag(socket->flag, LINKS_WRITEABLE_SHIFT);
     lua_pushinteger(L, 0);
     links_uv_error(L, status);
-    links_resume(L, 2, socket->self_ref, socket->thread_ref, "write_error");
+    links_resume(L, 2, socket->self_ref, socket->thread_ref);
     return;
   }
 
   socket->write_bytes += socket->bytes;
   lua_pushinteger(L, socket->bytes);
   lua_pushnil(L);
-  links_resume(L, 2, socket->self_ref, socket->thread_ref, "write_ok");
+  links_resume(L, 2, socket->self_ref, socket->thread_ref);
 }
 
 int links_tcp_socket_try_write(uv_stream_t* handle, uv_buf_t** bufs, size_t* count, size_t* written_bytes){
@@ -688,11 +690,11 @@ static void links_tcp_socket_after_shutdown(uv_shutdown_t* req, int status){
   /*uv_timer_stop(&socket->timer); */
   if(status < 0){
     links_uv_error(L, status);
-    links_resume(L, 1, socket->self_ref, socket->thread_ref, "shutdown_error");
+    links_resume(L, 1, socket->self_ref, socket->thread_ref);
   }
 
   lua_pushnil(L);
-  links_resume(L, 1, socket->self_ref, socket->thread_ref, "shutdown_ok");
+  links_resume(L, 1, socket->self_ref, socket->thread_ref);
 }
 
 static int links_tcp_socket_shutdown(lua_State* L){
@@ -726,15 +728,14 @@ static int links_tcp_socket_shutdown(lua_State* L){
   return lua_yield(L, 0);
 }
 
+static void links_tcp_socket_timer_onclose(uv_handle_t* handle){
+  links_tcp_socket_t* socket = container_of(handle, links_tcp_socket_t, timer);
+  links_pmem_free(&links_tcp_socket_pool, socket);
+}
+
 static void links_tcp_socket_onclose(uv_handle_t* handle){
   links_tcp_socket_t* socket = container_of(handle, links_tcp_socket_t, handle);
-  /*lua_State* L = links_get_main_thread();*/
-  lua_State* L = socket->thread;
-  /*uv_timer_stop(&socket->timer); */
-
-  /*luaL_unref(L, LUA_REGISTRYINDEX, socket->write_data_ref);*/
-  links_resume(L, 0, socket->self_ref, socket->thread_ref, "closed");
-  links_free(socket);
+  uv_close((uv_handle_t*)(&socket->timer), links_tcp_socket_timer_onclose);
 }
 
 static int links_tcp_socket_close(lua_State* L){
@@ -762,9 +763,8 @@ static int links_tcp_socket_close(lua_State* L){
   
   links_buf_free(socket->read_buf);
 
-  uv_handle_t* handle = (uv_handle_t*)(&socket->handle);
-  uv_close(handle, links_tcp_socket_onclose);
-  return lua_yield(L, 0);
+  uv_close((uv_handle_t*)(&socket->handle), links_tcp_socket_onclose);
+  return 0;
 }
 
 int luaopen_tcp(lua_State *L){

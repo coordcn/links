@@ -65,7 +65,7 @@ links_buf_t* links_buf_alloc(size_t size){
     buf->size = buf->end - buf->start;
   }
 
-  links_list_init(&buf->list);
+  /*links_list_init(&buf->list);*/
   return buf;
 }
 

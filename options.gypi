@@ -2,7 +2,7 @@
 {
   "variables": {
     "host_arch": "x64", 
-    "links_debug": "true", 
+    "links_debug": "false", 
     "target_arch": "x64", 
     "links_prefix": "", 
     "uv_library": "static_library"

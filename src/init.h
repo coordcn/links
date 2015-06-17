@@ -22,7 +22,10 @@ int luaopen_process(lua_State* L);
 
 void links_dns_init();
 int luaopen_dns(lua_State* L);
+
+void links_tcp_socket_pool_init(uint32_t max_free_mems);
 int luaopen_tcp(lua_State* L);
+
 int luaopen_http(lua_State* L);
 
 #endif /*LINKS_INIT_H*/
