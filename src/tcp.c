@@ -26,14 +26,16 @@ typedef struct {
   lua_State* thread;
   size_t maxconnections;
   size_t connections;
-  size_t timeout;
+  uint64_t timeout;
+  int tcp_nodelay;
+  int tcp_keepalive;
+  uint32_t tcp_keepidle;
   int thread_ref;
   int self_ref;
   int onconnect_ref;
+  uint32_t read_buf_size;
   size_t max_read_bytes;
   size_t max_write_bytes;
-  uint32_t read_buf_size;
-  uint32_t write_buf_size;
 } links_tcp_server_t;
 
 typedef union {
@@ -46,7 +48,7 @@ typedef struct {
   uv_tcp_t handle;
   uv_timer_t timer;
   links_tcp_req_t req;
-  size_t timeout;
+  uint64_t timeout;
   links_tcp_server_t* server;
   lua_State* thread;
   links_buf_t* read_buf;
@@ -144,6 +146,28 @@ static void links_tcp_server_onconnect(uv_stream_t* handle, int status){
     fprintf(stderr, "uv_accept() error: %s\n", uv_strerror(err));
     return;
   }
+
+  int tcp_nodelay = server->tcp_nodelay;
+  if(tcp_nodelay){
+    err = uv_tcp_nodelay(client_handle, tcp_nodelay);
+    if(err){
+      luaL_unref(L, LUA_REGISTRYINDEX, thread_ref);
+      links_pmem_free(&links_tcp_socket_pool, client);
+      fprintf(stderr, "uv_tcp_nodelay() error: %s\n", uv_strerror(err));
+      return;
+    }
+  }
+
+  int tcp_keepalive = server->tcp_keepalive;
+  if(tcp_keepalive){
+    err = uv_tcp_keepalive(client_handle, tcp_keepalive, server->tcp_keepidle);
+    if(err){
+      luaL_unref(L, LUA_REGISTRYINDEX, thread_ref);
+      links_pmem_free(&links_tcp_socket_pool, client);
+      fprintf(stderr, "uv_tcp_keepalive() error: %s\n", uv_strerror(err));
+      return;
+    }
+  }
   
   server->connections++;
   /*fprintf(stderr, "connections: %d\n", server->connections);*/
@@ -156,7 +180,7 @@ static void links_tcp_server_onconnect(uv_stream_t* handle, int status){
   lua_pushvalue(co, -1);
   client->self_ref = luaL_ref(co, LUA_REGISTRYINDEX);
   client->write_data_ref = LUA_NOREF;
-  client->read_buf_size = 16;
+  client->read_buf_size = server->read_buf_size;
   client->read_buf = NULL;
   client->read_bytes = 0;
   client->write_bytes = 0;
@@ -171,22 +195,22 @@ static void links_tcp_server_onconnect(uv_stream_t* handle, int status){
 
 /**
   tcp = require('tcp')
-  onconnection = require('xxx')
+  onconnect = require('xxx')
+
   local options = {
-    port =,
-    host =,
+    port = required,
+    host = 0.0.0.0,
     family = 4,
-    maxconnections =,
-    timeout =,
-    tcp_nodelay = true,
-    tcp_keepalive =, 
-    tcp_backlog = 1024,
-    tcp_recvbuf =,
-    tcp_sendbuf =,
+    maxconnections = 65535,
+    timeout = 0,
+    tcp_nodelay = 1,
+    tcp_keepalive = 1, 
+    tcp_backlog = 511,
     tcp_reuseport = true,
-    onconnect = function(socket){
-    },
+    read_buf_size = 16,
+    onconnect = onconnect,
   }
+
   tcp.createServer(options)
  */
 static int links_tcp_create_server(lua_State* L){
@@ -263,7 +287,96 @@ static int links_tcp_create_server(lua_State* L){
     return luaL_argerror(L, 2, "tcp.createServer(options) error: options.tcp_backlog must be [number]\n"); 
   }
   lua_pop(L, 1);
+
+  lua_getfield(L, 1, "tcp_reuseport");
+  int tcp_reuseport;
+  if(lua_type(L, -1) == LUA_TBOOLEAN){
+    tcp_reuseport = lua_toboolean(L, -1);
+  }else if(lua_type(L, -1) == LUA_TNIL){
+    tcp_reuseport = 0;
+  }else{
+    return luaL_argerror(L, 2, "tcp.createServer(options) error: options.tcp_reuseport must be [boolean]\n"); 
+  }
+  lua_pop(L, 1);
   
+  lua_getfield(L, 1, "tcp_nodelay");
+  int tcp_nodelay;
+  if(lua_type(L, -1) == LUA_TBOOLEAN){
+    tcp_nodelay = lua_toboolean(L, -1);
+  }else if(lua_type(L, -1) == LUA_TNIL){
+    tcp_nodelay = 0;
+  }else{
+    return luaL_argerror(L, 2, "tcp.createServer(options) error: options.tcp_nodelay must be [boolean]\n"); 
+  }
+  lua_pop(L, 1);
+  
+  lua_getfield(L, 1, "tcp_keepalive");
+  int tcp_keepalive;
+  if(lua_type(L, -1) == LUA_TBOOLEAN){
+    tcp_keepalive = lua_toboolean(L, -1);
+  }else if(lua_type(L, -1) == LUA_TNIL){
+    tcp_keepalive = 0;
+  }else{
+    return luaL_argerror(L, 2, "tcp.createServer(options) error: options.tcp_keepalive must be [boolean]\n"); 
+  }
+  lua_pop(L, 1);
+  
+  lua_getfield(L, 1, "tcp_keepidle");
+  int tcp_keepidle;
+  if(lua_type(L, -1) == LUA_TNUMBER){
+    tcp_keepidle = lua_tointeger(L, -1);
+  }else if(lua_type(L, -1) == LUA_TNIL){
+    tcp_keepidle = 0;
+  }else{
+    return luaL_argerror(L, 2, "tcp.createServer(options) error: options.tcp_keepidle must be [number]\n"); 
+  }
+  lua_pop(L, 1);
+  
+  lua_getfield(L, 1, "maxconnections");
+  int maxconnections;
+  if(lua_type(L, -1) == LUA_TNUMBER){
+    maxconnections = lua_tointeger(L, -1);
+  }else if(lua_type(L, -1) == LUA_TNIL){
+    maxconnections = 65535;
+  }else{
+    return luaL_argerror(L, 2, "tcp.createServer(options) error: options.maxconnections must be [number]\n"); 
+  }
+
+  if(maxconnections < 0){
+    return luaL_argerror(L, 2, "tcp.createServer(options) error: options.maxconnections must be >= 0\n"); 
+  }
+  lua_pop(L, 1);
+  
+  lua_getfield(L, 1, "timeout");
+  int timeout;
+  if(lua_type(L, -1) == LUA_TNUMBER){
+    timeout = lua_tointeger(L, -1);
+  }else if(lua_type(L, -1) == LUA_TNIL){
+    timeout = 0;
+  }else{
+    return luaL_argerror(L, 2, "tcp.createServer(options) error: options.timeout must be [number]\n"); 
+  }
+
+  if(timeout < 0){
+    return luaL_argerror(L, 2, "tcp.createServer(options) error: options.timeout must be >= 0\n"); 
+  }
+  lua_pop(L, 1);
+  
+  lua_getfield(L, 1, "read_buf_size");
+  int read_buf_size;
+  if(lua_type(L, -1) == LUA_TNUMBER){
+    read_buf_size = lua_tointeger(L, -1);
+  }else if(lua_type(L, -1) == LUA_TNIL){
+    read_buf_size = 16;
+  }else{
+    return luaL_argerror(L, 2, "tcp.createServer(options) error: options.read_buf_size must be [number]\n"); 
+  }
+  lua_pop(L, 1);
+
+  if(read_buf_size <= 0 || read_buf_size > LINKS_BUF_MAX_SIZE){
+    return luaL_error(L, "tcp.createServer(options) error: options.read_buf_size must be (0, %d]\n", LINKS_BUF_MAX_SIZE); 
+  }
+
   links_tcp_server_t* server = lua_newuserdata(L, sizeof(links_tcp_server_t));
   lua_pushlightuserdata(L, &links_tcp_server_metatable_key);
   lua_rawget(L, LUA_REGISTRYINDEX);
@@ -271,7 +384,7 @@ static int links_tcp_create_server(lua_State* L){
 
   uv_tcp_t* handle = &server->handle;
   uv_tcp_init(uv_default_loop(), handle);
-  int err = uv_tcp_bind(handle, addr, 0);
+  int err = uv_tcp_bind(handle, addr, 0, tcp_reuseport);
   if(err){
     return luaL_error(L, "tcp.createServer(options) uv_tcp_bind() error: %s\n", uv_strerror(err)); 
   }
@@ -281,9 +394,13 @@ static int links_tcp_create_server(lua_State* L){
     return luaL_error(L, "tcp.createServer(options) uv_listen() error: %s\n", uv_strerror(err)); 
   }
 
-  server->maxconnections = 65536;
+  server->maxconnections = maxconnections;
   server->connections = 0;
-  server->timeout = 0;
+  server->timeout = timeout;
+  server->tcp_nodelay = tcp_nodelay;
+  server->tcp_keepalive = tcp_keepalive;
+  server->tcp_keepidle = tcp_keepidle;
+  server->read_buf_size = read_buf_size;
   server->thread = L;
   server->thread_ref = LUA_NOREF;
   if(L != links_get_main_thread()){

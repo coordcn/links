@@ -142,7 +142,8 @@ int uv_ip6_name(const struct sockaddr_in6* src, char* dst, size_t size) {
 
 int uv_tcp_bind(uv_tcp_t* handle,
                 const struct sockaddr* addr,
-                unsigned int flags) {
+                unsigned int flags,
+                int reuseport) {
   unsigned int addrlen;
 
   if (handle->type != UV_TCP)
@@ -155,7 +156,7 @@ int uv_tcp_bind(uv_tcp_t* handle,
   else
     return UV_EINVAL;
 
-  return uv__tcp_bind(handle, addr, addrlen, flags);
+  return uv__tcp_bind(handle, addr, addrlen, flags, reuseport);
 }
 
 

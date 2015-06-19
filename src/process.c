@@ -16,8 +16,8 @@ typedef struct {
 
 static char links_process_exepath[PATH_MAX * 2];
 static char* links_process_exepath_ptr;
-static uv_idle_t links_process_idle;
-static uv_idle_t* links_process_idle_ptr;
+static uv_signal_t links_process_signal;
+static uv_signal_t* links_process_signal_ptr;
 static uv_stdio_container_t links_process_stdio[3];
 static uv_stdio_container_t* links_process_stdio_ptr;
 
@@ -44,7 +44,7 @@ static void links_process_free_options(uv_process_options_t* options){
   free(options);
 }
 
-static void links_process_idle_dummy(uv_idle_t* handle){
+static void links_process_signal_callback(uv_signal_t* handle, int signal){
   /*do nothing, only for maintaining event loop.*/
 }
 
@@ -237,10 +237,10 @@ static int links_process_fork(lua_State* L){
   }
   if(cpu >= 0) links_set_affinity(handle->pid, cpu);
 
-  if(!links_process_idle_ptr){
-    uv_idle_init(uv_default_loop(), &links_process_idle);
-    links_process_idle_ptr = &links_process_idle;
-    uv_idle_start(links_process_idle_ptr, links_process_idle_dummy);
+  if(!links_process_signal_ptr){
+    uv_signal_init(uv_default_loop(), &links_process_signal);
+    links_process_signal_ptr = &links_process_signal;
+    uv_signal_start(links_process_signal_ptr, links_process_signal_callback, SIGQUIT);
   }
 
   lua_pushinteger(L, handle->pid);
@@ -299,10 +299,10 @@ static int links_process_exec(lua_State* L){
     return luaL_error(L, "process.exec(cmd) uv_spawn() error: %s\n", uv_strerror(ret));
   }
 
-  if(!links_process_idle_ptr){
-    uv_idle_init(uv_default_loop(), &links_process_idle);
-    links_process_idle_ptr = &links_process_idle;
-    uv_idle_start(links_process_idle_ptr, links_process_idle_dummy);
+  if(!links_process_signal_ptr){
+    uv_signal_init(uv_default_loop(), &links_process_signal);
+    links_process_signal_ptr = &links_process_signal;
+    uv_signal_start(links_process_signal_ptr, links_process_signal_callback, SIGQUIT);
   }
 
   lua_pushinteger(L, handle->pid);

@@ -8,12 +8,6 @@
 #include "alloc.h"
 #include "buf.h"
 
-#define LINKS_BUF_SLOT_SIZE 16
-#define LINKS_BUF_STEP_SIZE 16
-#define LINKS_BUF_STEP_SIZE_SHIFT LINKS_16_SHIFT
-#define LINKS_BUF_MAX_SIZE (LINKS_BUF_STEP_SIZE * LINKS_BUF_SLOT_SIZE)
-#define links_buf_slot(size) ((links_align(LINKS_BUF_STEP_SIZE, (size)) >> LINKS_BUF_STEP_SIZE_SHIFT) - 1)
-
 static size_t links_pagesize;
 static links_buf_slot_t links_buf_slots[LINKS_BUF_SLOT_SIZE]; 
 

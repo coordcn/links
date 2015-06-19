@@ -499,7 +499,6 @@ UV_EXTERN int uv_tcp_nodelay(uv_tcp_t* handle, int enable);
 UV_EXTERN int uv_tcp_keepalive(uv_tcp_t* handle,
                                int enable,
                                unsigned int delay);
-UV_EXTERN int uv_tcp_reuseport(uv_tcp_t* handle, int enable);
 UV_EXTERN int uv_tcp_simultaneous_accepts(uv_tcp_t* handle, int enable);
 
 enum uv_tcp_flags {
@@ -509,7 +508,8 @@ enum uv_tcp_flags {
 
 UV_EXTERN int uv_tcp_bind(uv_tcp_t* handle,
                           const struct sockaddr* addr,
-                          unsigned int flags);
+                          unsigned int flags,
+                          int reuserport);
 UV_EXTERN int uv_tcp_getsockname(const uv_tcp_t* handle,
                                  struct sockaddr* name,
                                  int* namelen);

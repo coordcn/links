@@ -11,6 +11,12 @@
 #include "list.h"
 #include "config.h"
 
+#define LINKS_BUF_SLOT_SIZE 16
+#define LINKS_BUF_STEP_SIZE 16
+#define LINKS_BUF_STEP_SIZE_SHIFT LINKS_16_SHIFT
+#define LINKS_BUF_MAX_SIZE (LINKS_BUF_STEP_SIZE * LINKS_BUF_SLOT_SIZE)
+#define links_buf_slot(size) ((links_align(LINKS_BUF_STEP_SIZE, (size)) >> LINKS_BUF_STEP_SIZE_SHIFT) - 1)
+
 typedef struct {
   links_list_t list;
   size_t slot;

@@ -59,7 +59,8 @@ static int maybe_new_socket(uv_tcp_t* handle, int domain, int flags) {
 int uv__tcp_bind(uv_tcp_t* tcp,
                  const struct sockaddr* addr,
                  unsigned int addrlen,
-                 unsigned int flags) {
+                 unsigned int flags,
+                 int reuseport) {
   int err;
   int on;
 
@@ -75,6 +76,9 @@ int uv__tcp_bind(uv_tcp_t* tcp,
 
   on = 1;
   if (setsockopt(tcp->io_watcher.fd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)))
+    return -errno;
+
+  if (setsockopt(tcp->io_watcher.fd, SOL_SOCKET, SO_REUSEPORT, &reuseport, sizeof(reuseport)))
     return -errno;
 
 #ifdef IPV6_V6ONLY
@@ -273,13 +277,6 @@ int uv__tcp_keepalive(int fd, int on, unsigned int delay) {
 }
 
 
-int uv__tcp_reuseport(int fd, int on){
-  if (setsockopt(fd, SOL_SOCKET, SO_REUSEPORT, &on, sizeof(on)))
-    return -errno;
-  return 0;
-}
-
-
 int uv_tcp_nodelay(uv_tcp_t* handle, int on) {
   int err;
 
@@ -315,19 +312,6 @@ int uv_tcp_keepalive(uv_tcp_t* handle, int on, unsigned int delay) {
   /* TODO Store delay if uv__stream_fd(handle) == -1 but don't want to enlarge
    *      uv_tcp_t with an int that's almost never used...
    */
-
-  return 0;
-}
-
-
-int uv_tcp_reuseport(uv_tcp_t* handle, int on){
-  int err;
-
-  if (uv__stream_fd(handle) != -1) {
-    err =uv__tcp_reuseport(uv__stream_fd(handle), on);
-    if (err)
-      return err;
-  }
 
   return 0;
 }

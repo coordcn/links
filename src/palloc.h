@@ -15,6 +15,18 @@
 #include "alloc.h"
 #include "config.h"
 
+#define LINKS_POOL_ALIGNMENT 64
+#define LINKS_POOL_BLOCKS_SIZE (links_align(LINKS_POOL_ALIGNMENT, sizeof(links_pool_block_t)))
+
+#define LINKS_POOL_SLOT_SIZE 16
+#define LINKS_POOL_CHUNK_STEP 64
+#define LINKS_POOL_CHUNK_STEP_SHIFT LINKS_64_SHIFT
+#define LINKS_POOL_MAX_CHUNK_SIZE (LINKS_POOL_CHUNK_STEP * LINKS_POOL_SLOT_SIZE - sizeof(links_pool_chunk_t))
+#define links_pool_slot(size) ((links_align(LINKS_POOL_CHUNK_STEP, (size + sizeof(links_pool_chunk_t))) >> LINKS_POOL_CHUNK_STEP_SHIFT) - 1)
+
+#define LINKS_POOL_MAX_FREE_BLOCKS 64
+#define LINKS_POOL_MAX_CHUNKS_SHIFT 6
+
 #if LINKS_USE_PALLOC
 #define links_palloc(size) links_pool_alloc(size)
 #define links_pfree(p) links_pool_free(p)
