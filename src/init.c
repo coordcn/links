@@ -43,7 +43,6 @@ static void links_platform_init(){
 
 int links_init(lua_State *L, int argc, char* argv[]){
   links_platform_init();
-  links_pool_slot_init();
   links_buf_slot_init();
   links_tcp_socket_pool_init(1024);
   links_dns_init();

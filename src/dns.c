@@ -68,7 +68,7 @@ static void links_ares_poll_close_callback(uv_handle_t* watcher){
 }
 
 static links_ares_task_t* links_ares_task_create(uv_loop_t* loop, ares_socket_t sock){
-  links_ares_task_t* task = (links_ares_task_t*)links_palloc(sizeof(links_ares_task_t));
+  links_ares_task_t* task = (links_ares_task_t*)links_malloc(sizeof(links_ares_task_t));
 
   if(!task){
     /* Out of memory. */
@@ -80,7 +80,7 @@ static links_ares_task_t* links_ares_task_create(uv_loop_t* loop, ares_socket_t 
 
   if(uv_poll_init_socket(loop, &task->poll_watcher, sock) < 0){
     /* This should never happen. */
-    links_pfree(task);
+    links_free(task);
     return NULL;
   }
 
@@ -127,7 +127,7 @@ static void links_ares_sockstate_callback(void* data,
 }
 
 static void links_ares_free_task(void *p){
-  links_pfree(p);
+  links_free(p);
 }
 
 static void links_ares_free_hostent(void *p){
@@ -237,7 +237,7 @@ static void links_dns_queryA_callback(void* data,
     lua_pushnil(L);
     links_dns_error(L, status);
     lua_resume(L, NULL, 2);
-    links_pfree(arg);
+    links_free(arg);
     return;
   }
 
@@ -247,7 +247,7 @@ static void links_dns_queryA_callback(void* data,
     lua_pushnil(L);
     links_dns_error(L, rc);
     lua_resume(L, NULL, 2);
-    links_pfree(arg);
+    links_free(arg);
     return;
   }
 
@@ -255,12 +255,16 @@ static void links_dns_queryA_callback(void* data,
   links_dns_host2addrs(L, host);
   lua_pushnil(L);
   lua_resume(L, NULL, 2);
-  links_pfree(arg);
+  links_free(arg);
 }
 
 static int links_dns_queryA(lua_State* L){
+  if(L == links_get_main_thread()){
+    return luaL_error(L, "dns.resolve4(name) error: must be used in a coroutine"); 
+  }
+
   if(lua_type(L, 1) != LUA_TSTRING){
-    return luaL_argerror(L, 1, "dns.resolve4(name) name must be [string]"); 
+    return luaL_argerror(L, 1, "dns.resolve4(name) error: name must be [string]"); 
   }
 
   size_t n;
@@ -273,7 +277,7 @@ static int links_dns_queryA(lua_State* L){
     return 2;
   }
   
-  links_dns_arg_t* arg = links_palloc(sizeof(links_dns_arg_t));
+  links_dns_arg_t* arg = links_malloc(sizeof(links_dns_arg_t));
   arg->L = L;
   arg->len = n;
   arg->name = links_strndup(name, n);
@@ -300,7 +304,7 @@ static void links_dns_queryAaaa_callback(void* data,
     lua_pushnil(L);
     links_dns_error(L, status);
     lua_resume(L, NULL, 2);
-    links_pfree(arg);
+    links_free(arg);
     return;
   }
 
@@ -310,7 +314,7 @@ static void links_dns_queryAaaa_callback(void* data,
     lua_pushnil(L);
     links_dns_error(L, rc);
     lua_resume(L, NULL, 2);
-    links_pfree(arg);
+    links_free(arg);
     return;
   }
 
@@ -318,12 +322,16 @@ static void links_dns_queryAaaa_callback(void* data,
   links_dns_host2addrs(L, host);
   lua_pushnil(L);
   lua_resume(L, NULL, 2);
-  links_pfree(arg);
+  links_free(arg);
 }
 
 static int links_dns_queryAaaa(lua_State* L){
+  if(L == links_get_main_thread()){
+    return luaL_error(L, "dns.resolve6(name) error: must be used in a coroutine"); 
+  }
+
   if(lua_type(L, 1) != LUA_TSTRING){
-    return luaL_argerror(L, 1, "dns.resolve6(name) name must be [string]"); 
+    return luaL_argerror(L, 1, "dns.resolve6(name) error: name must be [string]"); 
   }
 
   size_t n;
@@ -336,7 +344,7 @@ static int links_dns_queryAaaa(lua_State* L){
     return 2;
   }
   
-  links_dns_arg_t* arg = links_palloc(sizeof(links_dns_arg_t));
+  links_dns_arg_t* arg = links_malloc(sizeof(links_dns_arg_t));
   arg->L = L;
   arg->len = n;
   arg->name = links_strndup(name, n);

@@ -5,18 +5,41 @@
   @overview: 
  **************************************************************/
 
+#include "init.h"
 #include "links.h"
 
-int links_cannot_change(lua_State* L){
-  return luaL_error(L, "table fields cannot be changed.");
-}
+void links_parse_socket_address(lua_State* L, struct sockaddr_storage* address){
+  char ip[INET6_ADDRSTRLEN];
+  struct sockaddr_in* addr_in;
+  struct sockaddr_in6* addr_in6;
+  int family = 0;
+  int port = 0;
 
-void links_uv_error(lua_State* L, int err){
+  switch(address->ss_family){
+    case AF_INET:
+      addr_in = (struct sockaddr_in*)address;
+      uv_inet_ntop(AF_INET, &(addr_in->sin_addr), ip, sizeof(ip));
+      family = 4;
+      port = ntohs(addr_in->sin_port);
+      break;
+    case AF_INET6:
+      addr_in6 = (struct sockaddr_in6*)address;
+      uv_inet_ntop(AF_INET6, &(addr_in6->sin6_addr), ip, sizeof(ip));
+      family = 6;
+      port = ntohs(addr_in6->sin6_port);
+      break;
+    default:
+      lua_pushnil(L);
+      links_uv_error(L, UV_EAI_ADDRFAMILY);
+      return;
+  }
+
   lua_createtable(L, 0, 3);
-  lua_pushinteger(L, err);
-  lua_setfield(L, -2, "code");
-  lua_pushstring(L, uv_err_name(err));
-  lua_setfield(L, -2, "name");
-  lua_pushstring(L, uv_strerror(err));
-  lua_setfield(L, -2, "message");
+  lua_pushinteger(L, family);
+  lua_setfield(L, -2, "family");
+  lua_pushinteger(L, port);
+  lua_setfield(L, -2, "port");
+  lua_pushstring(L, ip);
+  lua_setfield(L, -2, "ip");
+  lua_pushnil(L);
 }

@@ -35,11 +35,11 @@
       },
       'sources': [
         'src/alloc.c',
-        'src/palloc.c',
         'src/pmem.c',
         'src/buf.c',
         'src/string.c',
         'src/hash.c',
+        'src/links.c',
         'src/util.c',
         'src/system.c',
         'src/process.c',
