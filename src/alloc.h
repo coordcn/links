@@ -12,18 +12,15 @@
 #define links_lower(c)      (u_char) ((c >= 'A' && c <= 'Z') ? (c | 0x20) : c)
 #define links_upper(c)      (u_char) ((c >= 'a' && c <= 'z') ? (c & ~0x20) : c)
 
-#define links_memzero(p, size) memset(p, 0, size)
-#define links_memset(p, c, size) memset(p, c, size)
+#define links_memset        memset
+#define links_memcpy        memcpy
+#define links_memmove       memmove
+#define links_memcmp        memcmp
+#define links_memzero(p, size) links_memset(p, 0, size)
 
-#define links_memcpy(dst, src, n) memcpy(dst, src, n)
-#define links_memmove(dst, src, n) memmove(dst, src, n)
-#define links_cpymem(dst, src, n) (((u_char *) memcpy(dst, src, n)) + (n))
-
-#define links_memcmp(s1, s2, n) memcmp((const char*)s1, (const char*)s2, n)
-
-#define links_strncmp(s1, s2, n) strncmp((const char*)s1, (const char*)s2, n)
-#define links_strncasecmp(s1, s2, n) strncasecmp((const char*)s1, (const char*)s2, n)
-#define links_strndup(src, n) links__strndup((const char*)src, n)
+#define links_strncmp       strncmp
+#define links_strncasecmp   strncasecmp
+#define links_strndup       links__strndup
 
 char* links__strndup(const char* src, size_t n);
 
@@ -48,7 +45,7 @@ void* links_memalign(size_t align, size_t size);
 
 #else
 
-#define links_memalign(align, size) links_alloc(size)
+#define links_memalign(align, size) links_malloc(size)
 
 #endif
 

@@ -12,11 +12,11 @@
 #include "stddef.h"
 
 #ifndef offset_of
-# define offset_of(type, member) ((intptr_t)((char*)(&(((type*)(0))->member))))
+#define offset_of(type, member) ((intptr_t)((char*)(&(((type*)(0))->member))))
 #endif
 
 #ifndef container_of
-# define container_of(ptr, type, member) ((type*)((char*)(ptr) - offset_of(type, member)))
+#define container_of(ptr, type, member) ((type*)((char*)(ptr) - offset_of(type, member)))
 #endif
 
 /**
@@ -200,7 +200,7 @@ static inline int links_hlist_is_single(links_hlist_head_t* head){
   return head->first && !head->first->next;
 }
 
-static inline void links_hlist__remove(links_hlist_node_t* node){
+static inline void links_hlist_remove(links_hlist_node_t* node){
   if(node->pprev){
     links_hlist_node_t* next = node->next;
     links_hlist_node_t** pprev = node->pprev;
@@ -209,12 +209,8 @@ static inline void links_hlist__remove(links_hlist_node_t* node){
   }
 }
 
-static inline void links_hlist_remove(links_hlist_node_t* node){
-  links_hlist__remove(node);
-}
-
 static inline void links_hlist_remove_init(links_hlist_node_t* node){
-  links_hlist__remove(node);
+  links_hlist_remove(node);
   links_hlist_node_init(node);
 }
 
@@ -226,10 +222,8 @@ static inline void links_hlist_insert_head(links_hlist_node_t* node, links_hlist
   node->pprev = &head->first;
 }
 
-#define hlist_entry(ptr, type, member) \
-	({ typeof(ptr) ____ptr = (ptr); \
-	   ____ptr ? container_of(____ptr, type, member) : NULL; \
-	})
+#define links_hlist_entry(ptr, type, member) \
+	container_of(ptr, type, member)
 
 #define links_hlist_for_each(pos, head) \
 	for (pos = (head)->first; pos ; pos = pos->next)

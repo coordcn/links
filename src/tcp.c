@@ -66,15 +66,15 @@ typedef struct {
 static char links_tcp_server_metatable_key;
 static char links_tcp_socket_metatable_key;
 
-static links_pmem_t links_tcp_socket_pool;
+static links_pool_t links_tcp_socket_pool;
 
-void links_tcp_socket_pool_init(uint32_t max_free_mems){
-  links_pmem_init(&links_tcp_socket_pool, max_free_mems);
+void links_tcp_socket_pool_init(uint32_t max_free_chunks){
+  links_pool_init(&links_tcp_socket_pool, max_free_chunks);
 }
 
 static void links_tcp_socket_timer_onclose(uv_handle_t* handle){
   links_tcp_socket_t* socket = container_of(handle, links_tcp_socket_t, timer);
-  links_pmem_free(&links_tcp_socket_pool, socket);
+  links_pfree(&links_tcp_socket_pool, socket);
 }
 
 static void links_tcp_socket_onclose(uv_handle_t* handle){
@@ -84,7 +84,7 @@ static void links_tcp_socket_onclose(uv_handle_t* handle){
 
 static void links_tcp_onclose(uv_handle_t* handle){
   links_tcp_socket_t* socket = container_of(handle, links_tcp_socket_t, handle);
-  links_pmem_free(&links_tcp_socket_pool, socket);
+  links_pfree(&links_tcp_socket_pool, socket);
 }
 
 static void links_tcp_server_onconnect(uv_stream_t* handle, int status){
@@ -117,7 +117,7 @@ static void links_tcp_server_onconnect(uv_stream_t* handle, int status){
 
   /*socket*/
   links_tcp_socket_t** client_ptr = lua_newuserdata(co, sizeof(links_tcp_socket_t*));
-  *client_ptr = links_pmem_alloc(&links_tcp_socket_pool, sizeof(links_tcp_socket_t));
+  *client_ptr = links_palloc(&links_tcp_socket_pool, sizeof(links_tcp_socket_t));
   links_tcp_socket_t* client = *client_ptr;
   /*socket metatable*/
   lua_pushlightuserdata(co, &links_tcp_socket_metatable_key);
@@ -165,8 +165,9 @@ static void links_tcp_server_onconnect(uv_stream_t* handle, int status){
   client->thread = co;
   client->current = co;
   client->thread_ref = thread_ref;
-  lua_pushvalue(co, -1);
-  client->self_ref = luaL_ref(co, LUA_REGISTRYINDEX);
+  /*lua_pushvalue(co, -1);*/
+  /*client->self_ref = luaL_ref(co, LUA_REGISTRYINDEX);*/
+  client->self_ref = LUA_NOREF;
   client->write_data_ref = LUA_NOREF;
   client->read_buf_size = server->read_buf_size;
   client->read_buf = NULL;
@@ -487,8 +488,9 @@ static int links_tcp_socket_connect(lua_State* L){
   }
 
   /*host*/
-  const char* host = (family == 4) ? "0.0.0.0" : "::";
-  if(links_check_string(L, 1, "host", host)){
+  const char* host = NULL;
+  size_t host_length = 0;
+  if(links_check_lstring(L, 1, "host", host, &host_length)){
     return luaL_argerror(L, 1, "tcp.connect(options) error: options.host is required and must be [string]\n"); 
   }
 
@@ -514,7 +516,7 @@ static int links_tcp_socket_connect(lua_State* L){
 
   /*socket*/
   links_tcp_socket_t** socket_ptr = lua_newuserdata(L, sizeof(links_tcp_socket_t*));
-  *socket_ptr = links_pmem_alloc(&links_tcp_socket_pool, sizeof(links_tcp_socket_t));
+  *socket_ptr = links_palloc(&links_tcp_socket_pool, sizeof(links_tcp_socket_t));
   links_tcp_socket_t* socket = *socket_ptr;
   /*socket metatable*/
   lua_pushlightuserdata(L, &links_tcp_socket_metatable_key);
@@ -535,8 +537,8 @@ static int links_tcp_socket_connect(lua_State* L){
   socket->thread = L;
   socket->current = L;
   socket->thread_ref = thread_ref;
-  lua_pushvalue(L, -1);
-  socket->self_ref = luaL_ref(L, LUA_REGISTRYINDEX);
+  /*lua_pushvalue(L, -1);*/
+  /*socket->self_ref = luaL_ref(L, LUA_REGISTRYINDEX);*/
   socket->write_data_ref = LUA_NOREF;
   socket->read_buf_size = read_buf_size;
   socket->read_buf = NULL;

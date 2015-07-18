@@ -16,7 +16,7 @@
 
 #include "list.h"
 #include "alloc.h"
-#include "pmem.h"
+#include "palloc.h"
 #include "buf.h"
 
 #define CR '\r'

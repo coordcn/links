@@ -101,6 +101,36 @@ static inline int links_check_string(lua_State* L, int index, const char* name, 
   return ret;
 }
 
+static inline int links_get_lstring(lua_State* L, int index, const char* name, const char* value, size_t* n){
+  int ret = 1;
+
+  lua_pushstring(L, name);
+  int type = lua_rawget(L, index);
+  if(type == LUA_TNIL){
+    ret = 0;
+  }else if(type == LUA_TSTRING){
+    value = lua_tolstring(L, -1, n);
+    ret = 0;
+  }
+  lua_pop(L, 1);
+
+  return ret;
+}
+
+static inline int links_check_lstring(lua_State* L, int index, const char* name, const char* value, size_t* n){
+  int ret = 1;
+
+  lua_pushstring(L, name);
+  int type = lua_rawget(L, index);
+  if(type == LUA_TSTRING){
+    value = lua_tolstring(L, -1, n);
+    ret = 0;
+  }
+  lua_pop(L, 1);
+
+  return ret;
+}
+
 static inline int links_get_boolean(lua_State* L, int index, const char* name, int* value){
   int ret = 1;
 
