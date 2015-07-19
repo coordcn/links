@@ -270,7 +270,7 @@ void links_hash_int_remove(links_hash_t* hash, size_t key){
   }
 }
 
-void links_hash_int_set_int32(links_hash_t* hash, size_t key, int32_t value){
+void links_hash_int_set_value(links_hash_t* hash, size_t key, int64_t value){
   if(hash->items >= hash->max_items){
     links_hash_rehash(hash);
   }
@@ -284,30 +284,20 @@ void links_hash_int_set_int32(links_hash_t* hash, size_t key, int32_t value){
     links_hlist_for_each(pos, slot){
       item = (links_hash_item_t*)links_list_entry(pos, links_hash_item_t, node);
       if(item->hash == key){
-        item->value.int32 = value;
-        if(hash->max_age){
-          item->expires = uv_now(uv_default_loop()) + hash->max_age;
-        }else{
-          item->expires = 0;
-        }
+        item->value = value;
         return;
       }
     }
   }
 
   item = (links_hash_item_t*)links_palloc(&links_hash_item_pool, sizeof(links_hash_item_t));
-  item->value.int32 = value;
+  item->value = value;
   item->hash = key;
-  if(hash->max_age){
-    item->expires = uv_now(uv_default_loop()) + hash->max_age;
-  }else{
-    item->expires = 0;
-  }
   links_hlist_insert_head(&item->node, slot);
   hash->items++;
 }
 
-int32_t links_hash_int_get_int32(links_hash_t* hash, size_t key){
+int links_hash_int_get_value(links_hash_t* hash, size_t key, int64_t* value){
   size_t index = links_hash_slot(key, hash->bits);
   links_hlist_head_t* slot = &hash->slots[index];
   links_hlist_node_t* pos;
@@ -317,18 +307,16 @@ int32_t links_hash_int_get_int32(links_hash_t* hash, size_t key){
     links_hlist_for_each(pos, slot){
       item = (links_hash_item_t*)links_list_entry(pos, links_hash_item_t, node);
       if(item->hash == key){
-        if(item->expires && item->expires < uv_now(uv_default_loop())){
-          return NULL;
-        }
-        return item->value.int32;
+        *value = item->value;
+        return 0;
       }
     }
   }
 
-  return NULL;
+  return 1;
 }
 
-void links_hash_int_remove_int32(links_hash_t* hash, size_t key){
+void links_hash_int_remove_value(links_hash_t* hash, size_t key){
   size_t index = links_hash_slot(key, hash->bits);
   links_hlist_head_t* slot = &hash->slots[index];
   links_hlist_node_t* pos;

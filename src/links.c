@@ -21,7 +21,7 @@ void links_uv_error(lua_State* L, int err){
   lua_setfield(L, -2, "message");
 }
 
-void links_resume(lua_State* L, int nargs, int self_ref, int thread_ref){
+void links_resume(lua_State* L, int nargs, int thread_ref){
   int ret = lua_resume(L, NULL, nargs);
   const char* error;
 
@@ -29,7 +29,6 @@ void links_resume(lua_State* L, int nargs, int self_ref, int thread_ref){
     case LUA_YIELD:
       return;
     case LUA_OK:
-      luaL_unref(L, LUA_REGISTRYINDEX, self_ref);
       luaL_unref(L, LUA_REGISTRYINDEX, thread_ref);
       return;
     case LUA_ERRRUN:

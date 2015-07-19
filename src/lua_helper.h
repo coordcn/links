@@ -69,6 +69,7 @@ static inline int links_check_number(lua_State* L, int index, const char* name, 
   lua_pop(L, 1);
 
   return ret;
+
 }
 
 static inline int links_get_string(lua_State* L, int index, const char* name, const char* value){

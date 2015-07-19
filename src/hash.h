@@ -90,23 +90,10 @@ typedef struct {
   links_hlist_head_t* slots;
 } links_hash_t;
 
-typedef union {
-  uint64_t uint64;
-  int64_t int64;
-  uint32_t uint32;
-  int32_t int32;
-  uint16_t uint16;
-  int16_t int16;
-  uint8_t uint8;
-  int8_t int8;
-  float float_;
-  double double_;
-} links_hash_value_t;
-
 typedef struct {
   links_hlist_node_t node;
   void* pointer;
-  links_hash_value_t value;
+  int64_t value;
   size_t hash;
   size_t expires;
   size_t key_length;
@@ -141,8 +128,8 @@ void links_hash_int_set(links_hash_t* hash, size_t key, void* pointer);
 void* links_hash_int_get(links_hash_t* hash, size_t key);
 void links_hash_int_remove(links_hash_t* hash, size_t key);
 
-void links_hash_int_set_int32(links_hash_t* hash, size_t key, int32_t value);
-int32_t links_hash_int_get_int32(links_hash_t* hash, size_t key);
-void links_hash_int_remove_int32(links_hash_t* hash, size_t key);
+void links_hash_int_set_value(links_hash_t* hash, size_t key, int64_t value);
+int links_hash_int_get_value(links_hash_t* hash, size_t key, int64_t* value);
+void links_hash_int_remove_value(links_hash_t* hash, size_t key);
 
 #endif /*LINKS_HASH_H*/
