@@ -17,6 +17,7 @@
 #include "list.h"
 #include "alloc.h"
 #include "palloc.h"
+#include "pbuf.h"
 #include "buf.h"
 
 #define CR '\r'

@@ -12,8 +12,11 @@
 #include "alloc.h"
 #include "config.h"
 
+#define LINKS_POOL_ALIGNMENT 64
+#define LINKS_POOL_MAGIC 0x55AA55AA
+
 #if LINKS_USE_PALLOC
-#define links_palloc(pool, size) links_pool_alloc(pool, size)
+#define links_palloc(pool, size) links_pool_alloc(pool, size, LINKS_POOL_MAGIC)
 #define links_pfree(pool, p) links_pool_free(pool, p)
 #else
 #define links_palloc(pool, size) links_malloc(size)
@@ -26,8 +29,9 @@ typedef struct {
   uint32_t free_chunks;
 } links_pool_t;
 
-typedef struct {
+typedef union {
   links_list_t list;
+  size_t magic;
 } links_pool_chunk_t;
 
 void links_pool_init(links_pool_t* pool, uint32_t max_free_chunks);
@@ -36,7 +40,7 @@ static inline void links_pool_set_max_free_chunks(links_pool_t* pool, uint32_t m
   pool->max_free_chunks = max_free_chunks;
 }
 
-void* links_pool_alloc(links_pool_t* pool, size_t size);
+void* links_pool_alloc(links_pool_t* pool, size_t size, size_t slot);
 void links_pool_free(links_pool_t* pool, void* p);
 
 #endif /*LINKS_PALLOC_H*/

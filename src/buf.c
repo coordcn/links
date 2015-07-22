@@ -45,7 +45,7 @@ links_buf_t* links_buf_alloc(size_t size){
   links_list_t* free_list = &links_buf_slots[slot].free_list;
   if(!links_list_is_empty(free_list)){
     list = free_list->next;
-    buf = (links_buf_t*)links_list_entry(list, links_buf_t, list);
+    buf = links_list_entry(list, links_buf_t, list);
     links_list_remove(list);
     links_buf_slots[slot].free_bufs--;  
   }else{

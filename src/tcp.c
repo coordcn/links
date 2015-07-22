@@ -771,7 +771,7 @@ int links_tcp_socket_try_write(uv_stream_t* handle, uv_buf_t** bufs, size_t* cou
 
   *written_bytes = err;
   size_t written = err;
-  for(; written != 0 && vcount > 0; vbufs++, vcount--){
+  for(; written != 0 && vcount > 0; vbufs++){
     if(vbufs[0].len > written){
       vbufs[0].base += written;
       vbufs[0].len -= written;
@@ -779,6 +779,7 @@ int links_tcp_socket_try_write(uv_stream_t* handle, uv_buf_t** bufs, size_t* cou
       break;
     }else{
       written -= vbufs[0].len;
+      vcount--;
     }
   }
 
@@ -795,29 +796,31 @@ static int links_tcp_socket_write(lua_State* L){
 
   links_tcp_socket_t** socket_ptr = lua_touserdata(L, 1);
   links_tcp_socket_t* socket = NULL;
-  if(!socket_ptr || !(socket = *socket_ptr)){
-    return luaL_argerror(L, 1, "socket:write(data) error: socket is closed\n"); 
+  if(!socket_ptr || 
+     !(socket = *socket_ptr) ||
+     links_check_flag(socket->flag, LINKS_CLOSE_SHIFT)){
+    return luaL_argerror(L, 1, "socket:write(data) error: socket has been closed\n"); 
+  }
+
+  if(links_check_flag(socket->flag, LINKS_SHUTDOWN_SHIFT)){
+    return luaL_error(L, "socket:write(data) error: socket:end() has been called\n"); 
   }
 
   if(!links_check_flag(socket->flag, LINKS_WRITEABLE_SHIFT)){
-    if(links_check_flag(socket->flag, LINKS_CLOSE_SHIFT)){
-      return luaL_error(L, "socket:write(data) error: unwriteable[socket:close() has been called]\n"); 
-    }
-    if(links_check_flag(socket->flag, LINKS_SHUTDOWN_SHIFT)){
-      return luaL_error(L, "socket:write(data) error: unwriteable[socket:shutdown() has been called]\n"); 
-    }
-    return luaL_error(L, "socket:write(data) error: unwriteable[please check the last socket:write(data) call error]\n"); 
+    return luaL_error(L, "socket:write(data) error: please check the last socket:write(data) call error\n"); 
   }
 
   uv_buf_t* bufs;
+  uv_buf_t* tmp = NULL;
   size_t count;
   size_t len;
   if(lua_type(L, 2) == LUA_TTABLE){
     count = lua_rawlen(L, 2);
-    bufs = links_malloc(sizeof(uv_buf_t) * count);
+    bufs = links_pbuf_alloc(sizeof(uv_buf_t) * count);
     if(!bufs){
-      return luaL_error(L, "socket:write(data) links_pmalloc(sizeof(uv_buf_t) * %" PRId64 ") error: out of memory \n", count); 
+      return luaL_error(L, "socket:write(data) error: links_pbuf_alloc(sizeof(uv_buf_t) * %" PRId64 ") out of memory \n", count); 
     }
+    tmp = bufs;
 
     for(size_t i = 0; i < count; ++i){
       lua_rawgeti(L, 2, i + 1);
@@ -826,33 +829,30 @@ static int links_tcp_socket_write(lua_State* L){
       lua_pop(L, 1);
     }
   }else if(lua_type(L, 2) == LUA_TSTRING){
+    uv_buf_t buf;
+    buf.base = (char*) luaL_checklstring(L, -1, &len);
+    buf.len = len;
+    
     count = 1;
-    bufs = links_malloc(sizeof(uv_buf_t) * count);
-    if(!bufs){
-      return luaL_error(L, "socket:write(data) links_pmalloc(sizeof(uv_buf_t) * %" PRId64 ") error: out of memory \n", count); 
-    }
-
-    bufs[0].base = (char*) luaL_checklstring(L, -1, &len);
-    bufs[0].len = len;
+    bufs = &buf;
   }else{
     return luaL_argerror(L, 2, "socket:write(data) error: data must be table[string array] or string\n"); 
   }
 
-  void* tmp = bufs;
 
   size_t written = 0;
   size_t vcount = count;
   uv_stream_t* handle = (uv_stream_t*)(&socket->handle);
   int err = links_tcp_socket_try_write(handle, &bufs, &vcount, &written);
   if(err){
-    links_free(tmp);
+    if(tmp) links_pbuf_free(tmp);
     lua_pushinteger(L, 0);
     links_uv_error(L, err);
     return 2;
   }
 
   if(vcount == 0){
-    links_free(tmp);
+    if(tmp) links_pbuf_free(tmp);
     lua_pushinteger(L, written);
     lua_pushnil(L);
     return 2;
@@ -866,7 +866,7 @@ static int links_tcp_socket_write(lua_State* L){
   uv_write_t* req = &(socket->req.write_req);
   err = uv_write2(req, handle, bufs, vcount, NULL, links_tcp_socket_after_write);
   if(err){
-    links_free(tmp);
+    if(tmp) links_pbuf_free(tmp);
     lua_pushinteger(L, written);
     links_uv_error(L, err);
     return 2;
@@ -879,25 +879,23 @@ static int links_tcp_socket_write(lua_State* L){
   lua_pushvalue(L, 2);
   socket->write_data_ref = luaL_ref(L, LUA_REGISTRYINDEX);
 
-  socket->bytes = bytes;
+  socket->bytes = bytes + written;
   socket->current = L;
-  links_free(tmp);
+  if(tmp) links_pbuf_free(tmp);
   return lua_yield(L, 0);
 }
 
 static int links_tcp_socket_local_address(lua_State* L){
   if(lua_type(L, 1) != LUA_TUSERDATA){
-    return luaL_argerror(L, 1, "socket:localAddress() error: socket must be [userdata]\n"); 
+    return luaL_argerror(L, 1, "socket:local_address() error: socket must be [userdata]\n"); 
   }
 
   links_tcp_socket_t** socket_ptr = lua_touserdata(L, 1);
   links_tcp_socket_t* socket = NULL;
-  if(!socket_ptr || !(socket = *socket_ptr)){
-    return luaL_error(L, "socket:localAddress() error: socket is closed\n"); 
-  }
-  
-  if(links_check_flag(socket->flag, LINKS_CLOSE_SHIFT)){
-    return luaL_error(L, "socket:localAddress() error: socket:close() has been called\n"); 
+  if(!socket_ptr || 
+     !(socket = *socket_ptr) ||
+     links_check_flag(socket->flag, LINKS_CLOSE_SHIFT)){
+    return luaL_error(L, "socket:local_address() error: socket has been closed\n"); 
   }
 
   struct sockaddr_storage address;
@@ -915,17 +913,15 @@ static int links_tcp_socket_local_address(lua_State* L){
 
 static int links_tcp_socket_remote_address(lua_State* L){
   if(lua_type(L, 1) != LUA_TUSERDATA){
-    return luaL_argerror(L, 1, "socket:remoteAddress() error: socket must be [userdata]\n"); 
+    return luaL_argerror(L, 1, "socket:remote_address() error: socket must be [userdata]\n"); 
   }
 
   links_tcp_socket_t** socket_ptr = lua_touserdata(L, 1);
   links_tcp_socket_t* socket = NULL;
-  if(!socket_ptr || !(socket = *socket_ptr)){
-    return luaL_error(L, "socket:remoteAddress() error: socket is closed\n"); 
-  }
-  
-  if(links_check_flag(socket->flag, LINKS_CLOSE_SHIFT)){
-    return luaL_error(L, "socket:remoteAddress() error: socket:close() has been called\n"); 
+  if(!socket_ptr || 
+     !(socket = *socket_ptr) ||
+     links_check_flag(socket->flag, LINKS_CLOSE_SHIFT)){
+    return luaL_error(L, "socket:remote_address() error: socket has been closed\n"); 
   }
 
   struct sockaddr_storage address;
@@ -948,23 +944,21 @@ static int links_tcp_socket_set_timout(lua_State* L){
 
   links_tcp_socket_t** socket_ptr = lua_touserdata(L, 1);
   links_tcp_socket_t* socket = NULL;
-  if(!socket_ptr || !(socket = *socket_ptr)){
-    return luaL_error(L, "socket:setTimeout(ms) error: socket is closed\n"); 
-  }
-  
-  if(links_check_flag(socket->flag, LINKS_CLOSE_SHIFT)){
-    return luaL_error(L, "socket:setTimeout(ms) error: socket:close() has been called\n"); 
+  if(!socket_ptr || 
+     !(socket = *socket_ptr) ||
+     links_check_flag(socket->flag, LINKS_CLOSE_SHIFT)){
+    return luaL_error(L, "socket:set_timeout(ms) error: socket has been closed\n"); 
   }
 
   int timeout;
   if(lua_type(L, 2) == LUA_TNUMBER){
     timeout = lua_tointeger(L, 2);
   }else{
-    return luaL_argerror(L, 2, "socket:setTimeout(ms) error: ms is [required] and must be [number]\n"); 
+    return luaL_argerror(L, 2, "socket:set_timeout(ms) error: ms is [required] and must be [number]\n"); 
   }
 
   if(timeout < 0){
-    return luaL_argerror(L, 2, "socket:setTimeout(ms) error: ms must be >= 0\n"); 
+    return luaL_argerror(L, 2, "socket:set_timeout(ms) error: ms must be >= 0\n"); 
   }
 
   socket->timeout = timeout;
@@ -973,24 +967,22 @@ static int links_tcp_socket_set_timout(lua_State* L){
 
 static int links_tcp_socket_set_nodelay(lua_State* L){
   if(lua_type(L, 1) != LUA_TUSERDATA){
-    return luaL_argerror(L, 1, "socket:setNodelay(enable) error: socket must be [userdata]\n"); 
+    return luaL_argerror(L, 1, "socket:set_nodelay(enable) error: socket must be [userdata]\n"); 
   }
 
   links_tcp_socket_t** socket_ptr = lua_touserdata(L, 1);
   links_tcp_socket_t* socket = NULL;
-  if(!socket_ptr || !(socket = *socket_ptr)){
-    return luaL_error(L, "socket:setNodelay(enable) error: socket is closed\n"); 
+  if(!socket_ptr || 
+     !(socket = *socket_ptr) ||
+     links_check_flag(socket->flag, LINKS_CLOSE_SHIFT)){
+    return luaL_error(L, "socket:set_nodelay(enable) error: socket has been closed\n"); 
   }
   
-  if(links_check_flag(socket->flag, LINKS_CLOSE_SHIFT)){
-    return luaL_error(L, "socket:setNodelay(enable) error: socket:close() has been called\n"); 
-  }
-
   int nodelay;
   if(lua_type(L, 2) == LUA_TBOOLEAN){
     nodelay = lua_toboolean(L, 2);
   }else{
-    return luaL_argerror(L, 2, "socket:setNodelay(enable) error: enable is [required] and must be [boolean]\n"); 
+    return luaL_argerror(L, 2, "socket:set_nodelay(enable) error: enable is [required] and must be [boolean]\n"); 
   }
 
   int err = uv_tcp_nodelay(&socket->handle, nodelay);
@@ -1005,17 +997,15 @@ static int links_tcp_socket_set_nodelay(lua_State* L){
 
 static int links_tcp_socket_set_keepalive(lua_State* L){
   if(lua_type(L, 1) != LUA_TUSERDATA){
-    return luaL_argerror(L, 1, "socket:setKeepalive(enable[, idle]) error: socket must be [userdata]\n"); 
+    return luaL_argerror(L, 1, "socket:set_keepalive(enable[, idle]) error: socket must be [userdata]\n"); 
   }
 
   links_tcp_socket_t** socket_ptr = lua_touserdata(L, 1);
   links_tcp_socket_t* socket = NULL;
-  if(!socket_ptr || !(socket = *socket_ptr)){
-    return luaL_error(L, "socket:setKeepalive(enable[, idle]) error: socket is closed\n"); 
-  }
-  
-  if(links_check_flag(socket->flag, LINKS_CLOSE_SHIFT)){
-    return luaL_error(L, "socket:setKeepalive(enable[, idle]) error: socket:close() has been called\n"); 
+  if(!socket_ptr || 
+     !(socket = *socket_ptr) ||
+     links_check_flag(socket->flag, LINKS_CLOSE_SHIFT)){
+    return luaL_error(L, "socket:set_keepalive(enable[, idle]) error: socket has been closed\n"); 
   }
   
   int argc = lua_gettop(L);
@@ -1024,7 +1014,7 @@ static int links_tcp_socket_set_keepalive(lua_State* L){
   if(lua_type(L, 2) == LUA_TBOOLEAN){
     keepalive = lua_toboolean(L, 2);
   }else{
-    return luaL_argerror(L, 2, "socket:setKeepalive(enable[, idle]) error: enable is [required] and must be [boolean]\n"); 
+    return luaL_argerror(L, 2, "socket:set_keepalive(enable[, idle]) error: enable is [required] and must be [boolean]\n"); 
   }
 
   int keepidle;
@@ -1032,11 +1022,11 @@ static int links_tcp_socket_set_keepalive(lua_State* L){
     if(lua_type(L, 3) == LUA_TNUMBER){
       keepidle = lua_tointeger(L, -1);
     }else{
-      return luaL_argerror(L, 3, "socket:setKeepalive(enable[, idle]) error: idle must be [number]\n"); 
+      return luaL_argerror(L, 3, "socket:set_keepalive(enable[, idle]) error: idle must be [number]\n"); 
     }
 
     if(keepidle < 0){
-      return luaL_argerror(L, 3, "socket:setKeepalive(enable[, idle]) error: idle must be >= 0\n"); 
+      return luaL_argerror(L, 3, "socket:set_keepalive(enable[, idle]) error: idle must be >= 0\n"); 
     }
   }else{
     keepidle = 0;
@@ -1067,20 +1057,19 @@ static void links_tcp_socket_after_shutdown(uv_shutdown_t* req, int status){
 
 static int links_tcp_socket_shutdown(lua_State* L){
   if(lua_type(L, 1) != LUA_TUSERDATA){
-    return luaL_argerror(L, 1, "socket:shutdown() error: socket must be [userdata]\n"); 
+    return luaL_argerror(L, 1, "socket:end() error: socket must be [userdata]\n"); 
   }
 
   links_tcp_socket_t** socket_ptr = lua_touserdata(L, 1);
   links_tcp_socket_t* socket = NULL;
-  if(!socket_ptr || !(socket = *socket_ptr)){
-    return luaL_error(L, "socket:shutdown() error: socket is closed\n"); 
+  if(!socket_ptr || 
+     !(socket = *socket_ptr) ||
+     links_check_flag(socket->flag, LINKS_CLOSE_SHIFT)){
+    return luaL_error(L, "socket:end() error: socket has been closed\n"); 
   }
   
   if(links_check_flag(socket->flag, LINKS_SHUTDOWN_SHIFT)){
-    if(links_check_flag(socket->flag, LINKS_SHUTDOWN_SHIFT)){
-      return luaL_error(L, "socket:shutdown() error: socket:close() has been called\n");
-    }
-    return luaL_error(L, "socket:shutdown() error: socket:shutdown() has been called\n");
+    return luaL_error(L, "socket:end() error: socket:end() has been called\n");
   }
 
   links_clear_flag(socket->flag, LINKS_WRITEABLE_SHIFT);
@@ -1098,19 +1087,17 @@ static int links_tcp_socket_shutdown(lua_State* L){
   return lua_yield(L, 0);
 }
 
-static int links_tcp_socket_close(lua_State* L){
+static int links_tcp_socket_gc(lua_State* L){
   if(lua_type(L, 1) != LUA_TUSERDATA){
-    return luaL_argerror(L, 1, "socket:close() error: socket must be [userdata]\n"); 
+    return luaL_argerror(L, 1, "socket:__gc() error: socket must be [userdata]\n"); 
   }
 
   links_tcp_socket_t** socket_ptr = lua_touserdata(L, 1);
   links_tcp_socket_t* socket = NULL;
-  if(!socket_ptr || !(socket = *socket_ptr)){
-    return luaL_error(L, "socket:close() error: socket is closed\n"); 
-  }
-  
-  if(links_check_flag(socket->flag, LINKS_CLOSE_SHIFT)){
-    return luaL_error(L, "socket:close() error: socket:close() has been called\n"); 
+  if(!socket_ptr ||
+     !(socket = *socket_ptr) ||
+     links_check_flag(socket->flag, LINKS_CLOSE_SHIFT)){
+    return luaL_error(L, "socket:__gc() error: socket has been closed\n"); 
   }
 
   links_clear_flag(socket->flag, LINKS_READABLE_SHIFT);
@@ -1169,10 +1156,10 @@ int luaopen_tcp(lua_State *L){
   lua_setfield(L, -2, "set_keepalive");
 
   lua_pushcfunction(L, links_tcp_socket_shutdown);
-  lua_setfield(L, -2, "shutdown");
+  lua_setfield(L, -2, "end");
 
-  lua_pushcfunction(L, links_tcp_socket_close);
-  lua_setfield(L, -2, "close");
+  lua_pushcfunction(L, links_tcp_socket_gc);
+  lua_setfield(L, -2, "__gc");
 
   lua_pushvalue(L, -1);
   lua_setfield(L, -2, "__index");
