@@ -270,7 +270,7 @@ void links_hash_int_remove(links_hash_t* hash, size_t key){
   }
 }
 
-void links_hash_int_set_value(links_hash_t* hash, size_t key, int64_t value){
+void links_hash_int_set_value(links_hash_t* hash, size_t key, int value){
   if(hash->items >= hash->max_items){
     links_hash_rehash(hash);
   }
@@ -297,7 +297,7 @@ void links_hash_int_set_value(links_hash_t* hash, size_t key, int64_t value){
   hash->items++;
 }
 
-int links_hash_int_get_value(links_hash_t* hash, size_t key, int64_t* value){
+int links_hash_int_get_value(links_hash_t* hash, size_t key, int* value){
   size_t index = links_hash_slot(key, hash->bits);
   links_hlist_head_t* slot = &hash->slots[index];
   links_hlist_node_t* pos;
@@ -333,4 +333,26 @@ void links_hash_int_remove_value(links_hash_t* hash, size_t key){
       }
     }
   }
+}
+
+int links_hash_int_get_remove_value(links_hash_t* hash, size_t key, int* value){
+  size_t index = links_hash_slot(key, hash->bits);
+  links_hlist_head_t* slot = &hash->slots[index];
+  links_hlist_node_t* pos;
+  links_hash_item_t* item;
+
+  if(!links_hlist_is_empty(slot)){
+    links_hlist_for_each(pos, slot){
+      item = (links_hash_item_t*)links_list_entry(pos, links_hash_item_t, node);
+      if(item->hash == key){
+        *value = item->value;
+        links_hlist_remove(&item->node);
+        links_pfree(&links_hash_item_pool, item);
+        hash->items--;
+        return 0;
+      }
+    }
+  }
+
+  return 1;
 }

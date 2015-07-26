@@ -72,7 +72,7 @@ static inline int links_check_number(lua_State* L, int index, const char* name, 
 
 }
 
-static inline int links_get_string(lua_State* L, int index, const char* name, const char* value){
+static inline int links_get_string(lua_State* L, int index, const char* name, const char* value __attribute__((unused))){
   int ret = 1;
 
   lua_pushstring(L, name);
@@ -88,7 +88,7 @@ static inline int links_get_string(lua_State* L, int index, const char* name, co
   return ret;
 }
 
-static inline int links_check_string(lua_State* L, int index, const char* name, const char* value){
+static inline int links_check_string(lua_State* L, int index, const char* name, const char* value __attribute__((unused))){
   int ret = 1;
 
   lua_pushstring(L, name);
@@ -102,7 +102,7 @@ static inline int links_check_string(lua_State* L, int index, const char* name, 
   return ret;
 }
 
-static inline int links_get_lstring(lua_State* L, int index, const char* name, const char* value, size_t* n){
+static inline int links_get_lstring(lua_State* L, int index, const char* name, const char* value __attribute__((unused)), size_t* n){
   int ret = 1;
 
   lua_pushstring(L, name);
@@ -118,7 +118,7 @@ static inline int links_get_lstring(lua_State* L, int index, const char* name, c
   return ret;
 }
 
-static inline int links_check_lstring(lua_State* L, int index, const char* name, const char* value, size_t* n){
+static inline int links_check_lstring(lua_State* L, int index, const char* name, const char* value __attribute__((unused)), size_t* n){
   int ret = 1;
 
   lua_pushstring(L, name);

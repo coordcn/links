@@ -26,6 +26,8 @@ void links_pbuf_set_max_free_chunks(size_t slot, uint32_t max_free_chunks){
 void* links_pbuf__alloc(size_t size){
   if(size > LINKS_PBUF_MAX_CHUNK_SIZE){
     links_pool_chunk_t* chunk = links_memalign(LINKS_POOL_ALIGNMENT, size + sizeof(links_pool_chunk_t));
+    if(!chunk) return NULL;
+
     chunk->magic = LINKS_PBUF_MAGIC;
     return (void*)((char*)chunk + sizeof(links_pool_chunk_t));
   }
@@ -43,7 +45,7 @@ void links_pbuf__free(void* p){
     }
    
     assert(chunk->magic != LINKS_POOL_MAGIC);
-    assert(chunk->magic >= 0 && chunk->magic < LINKS_PBUF_SLOT_SIZE);
+    assert(chunk->magic < LINKS_PBUF_SLOT_SIZE);
 
     links_pool_free(&links_pbuf_slots[chunk->magic], p);
   }

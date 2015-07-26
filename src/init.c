@@ -44,7 +44,9 @@ static void links_platform_init(){
 int links_init(lua_State *L, int argc, char* argv[]){
   links_platform_init();
   links_buf_slot_init();
-  links_tcp_socket_pool_init(1024);
+  links_pbuf_init(LINKS_PBUF_MAX_FREE_CHUNKS);
+  links_thread_ref_hash_init(LINKS_8K_SHIFT);
+  links_tcp_socket_pool_init(LINKS_TCP_SOCKET_POOL_MAX_FREE_CHUNKS);
   links_dns_init();
 
   links_start_time = uv_now(uv_default_loop());

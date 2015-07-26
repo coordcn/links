@@ -36,6 +36,7 @@ typedef struct {
   lua_State* L;
   size_t len;
   char* name; 
+  int thread_ref;
 } links_dns_arg_t;
 
 static void links_ares_timeout(uv_timer_t* handle){
@@ -199,10 +200,10 @@ void links_dns_init(){
   links_ares_tasks = links_hash_create_int_pointer(LINKS_2K_SHIFT,
                                        0,
                                        links_ares_free_task);
-  links_dns_ipv4_cache = links_hash_create_str_pointer(LINKS_8K_SHIFT, 
+  links_dns_ipv4_cache = links_hash_create_str_pointer(LINKS_4K_SHIFT, 
                                          DNS_MAX_AGE_DEFAULT, 
                                          links_ares_free_hostent);
-  links_dns_ipv6_cache = links_hash_create_str_pointer(LINKS_8K_SHIFT, 
+  links_dns_ipv6_cache = links_hash_create_str_pointer(LINKS_4K_SHIFT, 
                                          DNS_MAX_AGE_DEFAULT, 
                                          links_ares_free_hostent);
 }
@@ -241,7 +242,7 @@ static void links_dns_queryA_callback(void* data,
   if(status != ARES_SUCCESS){
     lua_pushnil(L);
     links_dns_error(L, status);
-    lua_resume(L, NULL, 2);
+    links_resume(L, 2, arg->thread_ref);
     links_pfree(&links_dns_arg_pool, arg);
     return;
   }
@@ -251,7 +252,7 @@ static void links_dns_queryA_callback(void* data,
   if(rc != ARES_SUCCESS){
     lua_pushnil(L);
     links_dns_error(L, rc);
-    lua_resume(L, NULL, 2);
+    links_resume(L, 2, arg->thread_ref);
     links_pfree(&links_dns_arg_pool, arg);
     return;
   }
@@ -259,7 +260,7 @@ static void links_dns_queryA_callback(void* data,
   links_hash_str_set(links_dns_ipv4_cache, arg->name, arg->len, host);
   links_dns_host2addrs(L, host);
   lua_pushnil(L);
-  lua_resume(L, NULL, 2);
+  links_resume(L, 2, arg->thread_ref);
   links_pfree(&links_dns_arg_pool, arg);
 }
 
@@ -283,7 +284,16 @@ static int links_dns_queryA(lua_State* L){
   }
   
   links_dns_arg_t* arg = links_palloc(&links_dns_arg_pool, sizeof(links_dns_arg_t));
+  if(!arg){
+    lua_pushnil(L);
+    links_uv_error(L, UV_ENOMEM);
+    return 2;
+  }
+
+  int ref = LUA_NOREF;
+  links_thread_ref_hash_get(L, &ref);
   arg->L = L;
+  arg->thread_ref = ref;
   arg->len = n;
   arg->name = links_strndup(name, n);
 
@@ -308,8 +318,8 @@ static void links_dns_queryAaaa_callback(void* data,
   if(status != ARES_SUCCESS){
     lua_pushnil(L);
     links_dns_error(L, status);
-    lua_resume(L, NULL, 2);
-    links_free(arg);
+    links_resume(L, 2, arg->thread_ref);
+    links_pfree(&links_dns_arg_pool, arg);
     return;
   }
 
@@ -318,16 +328,16 @@ static void links_dns_queryAaaa_callback(void* data,
   if(rc != ARES_SUCCESS){
     lua_pushnil(L);
     links_dns_error(L, rc);
-    lua_resume(L, NULL, 2);
-    links_free(arg);
+    links_resume(L, 2, arg->thread_ref);
+    links_pfree(&links_dns_arg_pool, arg);
     return;
   }
 
   links_hash_str_set(links_dns_ipv6_cache, arg->name, arg->len, host);
   links_dns_host2addrs(L, host);
   lua_pushnil(L);
-  lua_resume(L, NULL, 2);
-  links_free(arg);
+  links_resume(L, 2, arg->thread_ref);
+  links_pfree(&links_dns_arg_pool, arg);
 }
 
 static int links_dns_queryAaaa(lua_State* L){
@@ -349,8 +359,17 @@ static int links_dns_queryAaaa(lua_State* L){
     return 2;
   }
   
-  links_dns_arg_t* arg = links_malloc(sizeof(links_dns_arg_t));
+  links_dns_arg_t* arg = links_palloc(&links_dns_arg_pool, sizeof(links_dns_arg_t));
+  if(!arg){
+    lua_pushnil(L);
+    links_uv_error(L, UV_ENOMEM);
+    return 2;
+  }
+
+  int ref = LUA_NOREF;
+  links_thread_ref_hash_get(L, &ref);
   arg->L = L;
+  arg->thread_ref = ref;
   arg->len = n;
   arg->name = links_strndup(name, n);
 

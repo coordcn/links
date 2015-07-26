@@ -102,15 +102,6 @@ static void links_tcp_server_onconnect(uv_stream_t* handle, int status){
   lua_State* co = lua_newthread(L);
   int thread_ref = luaL_ref(L, LUA_REGISTRYINDEX);
 
-  /**
-    for links_tcp_socket_connect(options) get the thread_ref
-    may leak a little memory, just a little ^_^
-    if someone get a good idea, please share
-   */
-  lua_pushlightuserdata(L, co);
-  lua_pushinteger(L, thread_ref);
-  lua_rawset(L, LUA_REGISTRYINDEX);
-
   /*onconnect function*/
   lua_rawgeti(co, LUA_REGISTRYINDEX, server->onconnect_ref);
 
@@ -159,6 +150,7 @@ static void links_tcp_server_onconnect(uv_stream_t* handle, int status){
   server->connections++;
 
   uv_timer_init(loop, &client->timer);
+  links_thread_ref_hash_set(co, thread_ref);
   client->timeout = server->timeout;
   client->server = server;
   client->thread = co;
@@ -519,14 +511,8 @@ static int links_tcp_socket_connect(lua_State* L){
   lua_rawget(L, LUA_REGISTRYINDEX);
   lua_setmetatable(L, -2);
 
-  /*get the thread_ref*/
-  lua_pushlightuserdata(L, L);
-  lua_rawget(L, LUA_REGISTRYINDEX);
   int thread_ref = LUA_NOREF;
-  if(lua_isinteger(L, -1)){
-    thread_ref = lua_tointeger(L, -1);
-  }
-  lua_pop(L, 1);
+  links_thread_ref_hash_get(L, &thread_ref);
 
   socket->timeout = timeout;
   socket->server = NULL;
@@ -651,15 +637,14 @@ static int links_tcp_socket_read(lua_State* L){
 
   links_tcp_socket_t** socket_ptr = lua_touserdata(L, 1);
   links_tcp_socket_t* socket = NULL;
-  if(!socket_ptr || !(socket = *socket_ptr)){
-    return luaL_argerror(L, 1, "socket:read(n) error: socket is closed\n"); 
+  if(!socket_ptr || 
+     !(socket = *socket_ptr) ||
+     links_check_flag(socket->flag, LINKS_CLOSE_SHIFT)){
+    return luaL_argerror(L, 1, "socket:read(n) error: socket has been closed\n"); 
   }
 
   if(!links_check_flag(socket->flag, LINKS_READABLE_SHIFT)){
-    if(links_check_flag(socket->flag, LINKS_CLOSE_SHIFT)){
-      return luaL_error(L, "socket:read(n) error: unreadable[socket:close() has been called]\n"); 
-    }
-    return luaL_error(L, "socket:read(n) error: unreadable[please check the last socket:read(n) call error]\n"); 
+    return luaL_error(L, "socket:read(n) error: please check the last socket:read(n) call error\n"); 
   }
   
   int n;
@@ -771,7 +756,7 @@ int links_tcp_socket_try_write(uv_stream_t* handle, uv_buf_t** bufs, size_t* cou
 
   *written_bytes = err;
   size_t written = err;
-  for(; written != 0 && vcount > 0; vbufs++){
+  for(; written != 0 && vcount > 0; vbufs++, vcount--){
     if(vbufs[0].len > written){
       vbufs[0].base += written;
       vbufs[0].len -= written;
@@ -779,7 +764,6 @@ int links_tcp_socket_try_write(uv_stream_t* handle, uv_buf_t** bufs, size_t* cou
       break;
     }else{
       written -= vbufs[0].len;
-      vcount--;
     }
   }
 
@@ -812,6 +796,7 @@ static int links_tcp_socket_write(lua_State* L){
 
   uv_buf_t* bufs;
   uv_buf_t* tmp = NULL;
+  uv_buf_t buf;
   size_t count;
   size_t len;
   if(lua_type(L, 2) == LUA_TTABLE){
@@ -829,16 +814,13 @@ static int links_tcp_socket_write(lua_State* L){
       lua_pop(L, 1);
     }
   }else if(lua_type(L, 2) == LUA_TSTRING){
-    uv_buf_t buf;
     buf.base = (char*) luaL_checklstring(L, -1, &len);
     buf.len = len;
-    
     count = 1;
     bufs = &buf;
   }else{
     return luaL_argerror(L, 2, "socket:write(data) error: data must be table[string array] or string\n"); 
   }
-
 
   size_t written = 0;
   size_t vcount = count;

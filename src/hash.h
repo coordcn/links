@@ -93,11 +93,11 @@ typedef struct {
 typedef struct {
   links_hlist_node_t node;
   void* pointer;
-  int64_t value;
   size_t hash;
   size_t expires;
   size_t key_length;
   char* key;
+  int value;
 } links_hash_item_t;
 
 links_hash_t* links_hash__create(size_t bits, 
@@ -128,8 +128,9 @@ void links_hash_int_set(links_hash_t* hash, size_t key, void* pointer);
 void* links_hash_int_get(links_hash_t* hash, size_t key);
 void links_hash_int_remove(links_hash_t* hash, size_t key);
 
-void links_hash_int_set_value(links_hash_t* hash, size_t key, int64_t value);
-int links_hash_int_get_value(links_hash_t* hash, size_t key, int64_t* value);
+void links_hash_int_set_value(links_hash_t* hash, size_t key, int value);
+int links_hash_int_get_value(links_hash_t* hash, size_t key, int* value);
 void links_hash_int_remove_value(links_hash_t* hash, size_t key);
+int links_hash_int_get_remove_value(links_hash_t* hash, size_t key, int* value);
 
 #endif /*LINKS_HASH_H*/

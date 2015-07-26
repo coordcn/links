@@ -19,6 +19,7 @@
 #include "palloc.h"
 #include "pbuf.h"
 #include "buf.h"
+#include "hash.h"
 
 #define CR '\r'
 #define LF '\n'
@@ -34,7 +35,12 @@ lua_State* links_get_main_thread();
 
 /*links.c*/
 int links_cannot_change(lua_State* L);
-void links_uv_error(lua_State* L, int err); 
+void links_uv_error(lua_State* L, int err);
+
+void links_thread_ref_hash_init(size_t bits);
+void links_thread_ref_hash_set(lua_State* L, int ref);
+int links_thread_ref_hash_get(lua_State* L, int* ref);
+
 void links_resume(lua_State* L, int nargs, int thread_ref);
 
 #endif /*LINKS_LINKS_H*/

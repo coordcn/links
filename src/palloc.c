@@ -25,6 +25,7 @@ void* links_pool_alloc(links_pool_t* pool, size_t size, size_t slot){
     pool->free_chunks--;  
   }else{
     chunk = links_memalign(LINKS_POOL_ALIGNMENT, size + sizeof(links_pool_chunk_t));
+    if(!chunk) return NULL;
   }
 
   chunk->magic = slot;
