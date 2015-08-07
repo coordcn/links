@@ -20,6 +20,7 @@
 #include "pbuf.h"
 #include "buf.h"
 #include "hash.h"
+#include "links_errno.h"
 
 #define CR '\r'
 #define LF '\n'
@@ -35,7 +36,9 @@ lua_State* links_get_main_thread();
 
 /*links.c*/
 int links_cannot_change(lua_State* L);
+
 void links_uv_error(lua_State* L, int err);
+void links_error(lua_State* L, int code, const char* name, const char* msg);
 
 void links_thread_ref_hash_init(size_t bits);
 void links_thread_ref_hash_set(lua_State* L, int ref);

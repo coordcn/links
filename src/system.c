@@ -13,7 +13,7 @@ static int links_system_cpuinfo(lua_State* L){
   int count;
 
   int err = uv_cpu_info(&cpu_infos, &count);
-  if(err < 0) return luaL_error(L, "system.cpuinfo() uv_cpu_info() error: %s", uv_strerror(err));
+  if(err < 0) return luaL_error(L, "system.cpuinfo() error: %s", uv_strerror(err));
 
   lua_createtable(L, count, 0);
   for(int i = 0; i < count; i++){
@@ -86,7 +86,7 @@ static int links_system_hrtime(lua_State* L){
 static int links_system_uptime(lua_State* L){
   double uptime;
   int err = uv_uptime(&uptime);
-  if(err < 0)return luaL_error(L, "system.uptime() uv_uptime() error: %s", uv_strerror(err));
+  if(err < 0)return luaL_error(L, "system.uptime() error: %s", uv_strerror(err));
   
   lua_pushnumber(L, uptime);
 
@@ -115,13 +115,13 @@ int luaopen_system(lua_State *L){
   endian = (u.c == 1) ? "LE" : "BE";
 
   luaL_Reg lib[] = {
-    { "cpuinfo", links_system_cpuinfo},
-    { "meminfo", links_system_meminfo},
-    { "loadavg", links_system_loadavg},
-    { "hrtime", links_system_hrtime},
-    { "uptime", links_system_uptime},
-    { "__newindex", links_cannot_change},
-    { NULL, NULL}
+    { "cpuinfo", links_system_cpuinfo },
+    { "meminfo", links_system_meminfo },
+    { "loadavg", links_system_loadavg },
+    { "hrtime", links_system_hrtime },
+    { "uptime", links_system_uptime },
+    { "__newindex", links_cannot_change },
+    { NULL, NULL }
   };
 
   lua_createtable(L, 0, 0);

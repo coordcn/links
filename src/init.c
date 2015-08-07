@@ -19,26 +19,6 @@ static void links_platform_init(){
   sa.sa_handler = SIG_IGN;
   int ret = sigaction(SIGPIPE, &sa, NULL);
   assert(ret == 0);
-
-  /*raise the open file descriptor limit*/
-  struct rlimit limit;
-  if(getrlimit(RLIMIT_NOFILE, &limit) == 0 && limit.rlim_cur != limit.rlim_max){
-    /*binary search*/
-    rlim_t min = limit.rlim_cur;
-    rlim_t max = 1 << 20;
-    if(limit.rlim_max != RLIM_INFINITY){
-      min = limit.rlim_max;
-      max = limit.rlim_max;
-    }
-    do {
-      limit.rlim_cur = min + (max - min) / 2;
-      if(setrlimit(RLIMIT_NOFILE, &limit)){
-        max = limit.rlim_cur;
-      }else{
-        min = limit.rlim_cur;
-      }
-    }while(min + 1 < max);
-  }
 }
 
 int links_init(lua_State *L, int argc, char* argv[]){
@@ -71,7 +51,7 @@ int links_init(lua_State *L, int argc, char* argv[]){
   
   /*tcp*/
   lua_pushcfunction(L, luaopen_tcp);
-  lua_setfield(L, -2, "tcp");
+  lua_setfield(L, -2, "tcp_native");
   
   /*http*/
   lua_pushcfunction(L, luaopen_http);

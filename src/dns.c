@@ -200,10 +200,10 @@ void links_dns_init(){
   links_ares_tasks = links_hash_create_int_pointer(LINKS_2K_SHIFT,
                                        0,
                                        links_ares_free_task);
-  links_dns_ipv4_cache = links_hash_create_str_pointer(LINKS_4K_SHIFT, 
+  links_dns_ipv4_cache = links_hash_create_strcase_pointer(LINKS_4K_SHIFT, 
                                          DNS_MAX_AGE_DEFAULT, 
                                          links_ares_free_hostent);
-  links_dns_ipv6_cache = links_hash_create_str_pointer(LINKS_4K_SHIFT, 
+  links_dns_ipv6_cache = links_hash_create_strcase_pointer(LINKS_4K_SHIFT, 
                                          DNS_MAX_AGE_DEFAULT, 
                                          links_ares_free_hostent);
 }

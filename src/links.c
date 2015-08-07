@@ -23,6 +23,16 @@ void links_uv_error(lua_State* L, int err){
   lua_setfield(L, -2, "message");
 }
 
+void links_error(lua_State* L, int code, const char* name, const char* msg){
+  lua_createtable(L, 0, 3);
+  lua_pushinteger(L, code);
+  lua_setfield(L, -2, "code");
+  lua_pushstring(L, name);
+  lua_setfield(L, -2, "name");
+  lua_pushstring(L, msg);
+  lua_setfield(L, -2, "message");
+}
+
 void links_thread_ref_hash_init(size_t bits){
   links_thread_ref_hash = links_hash_create_int_value(bits);
 }
