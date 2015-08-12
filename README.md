@@ -20,8 +20,8 @@ http server base on lua + libuv
 ####system
 
 system.cpuinfo()
-@overview returns an array of all cpus informations. 
-@return {table[array(object)]}
+* @overview returns an array of all cpus informations. 
+* @return {table[array(object)]}
 ```lua
   ret = {
     {
@@ -50,8 +50,8 @@ system.cpuinfo()
 ```
 
 system.meminfo()
-@overview returns the total and free system memory in bytes.
-@return {table}
+* @overview returns the total and free system memory in bytes.
+* @return {table}
 ```lua
   ret = {
     total = '{integer} [bytes]',
@@ -60,22 +60,22 @@ system.meminfo()
 ```
 
 system.loadavg()
-@overview returns an array containing the 1, 5, 15 minute load averages.
-@return {table[array(number)]}
+* @overview returns an array containing the 1, 5, 15 minute load averages.
+* @return {table[array(number)]}
 
 system.hrtime()
-@overview returns the current high-resolution real time in nanoseconds.
-@return {integer} [nanoseconds]
+* @overview returns the current high-resolution real time in nanoseconds.
+* @return {integer} [nanoseconds]
 
 system.uptime()
-@overview returns the system running time in seconds
-@return {number} [seconds]
+* @overview returns the system running time in seconds
+* @return {number} [seconds]
 
 ####process
 
 process.fork(options)
-@overview create a process and return the pid. 
-@param options {table}
+* @overview create a process and return the pid. 
+* @param options {table}
 ```lua
   local options = {
     file = '{string} the file to run in the process',
@@ -87,54 +87,54 @@ process.fork(options)
     detached = '{boolean} if true, the child process will be made the leader of a new process group. This makes it possible for the child to continue running after the parent exits'
   }
 ```
-@return pid {integer}
+* @return pid {integer}
 
 process.exec(command)
-@overview create a new process and executive the command
-@param command {string}
-@return pid {integer}
+* @overview create a new process and executive the command
+* @param command {string}
+* @return pid {integer}
 
 process.cwd()
-@overview return the current working directory of the process
-@return cwd {string}
+* @overview return the current working directory of the process
+* @return cwd {string}
 
 process.exit([signal])
-@overview end the process with the specified signal
-@param signal {integer|default:SIGTERM}
+* @overview end the process with the specified signal
+* @param signal {integer|default:SIGTERM}
 
 process.abort()
-@overview abort the process and generate a core file(if core file is open)
+* @overview abort the process and generate a core file(if core file is open)
 
 process.kill(pid[, signal])
-@overview send a signal to a process
-@param pid {integer}
-@param signal {integer|default:SIGTERM}
+* @overview send a signal to a process
+* @param pid {integer}
+* @param signal {integer|default:SIGTERM}
 
 process.uptime()
-@overview return the process running time in seconds 
-@return {integer} [seconds]
+* @overview return the process running time in seconds 
+* @return {integer} [seconds]
 
 ####dns
 dns.resolve4(hostname)
-@overvie resolve hostname(e.g. 'baidu.com') into an array of IPv4 address
-@param hostname {string}
-@return {table[array(string)]} ips array
+* @overvie resolve hostname(e.g. 'baidu.com') into an array of IPv4 address
+* @param hostname {string}
+* @return {table[array(string)]} ips array
 
 dns.resolve6(hostname)
-@overvie resolve hostname(e.g. 'baidu.com') into an array of IPv6 address
-@param hostname {string}
-@return {table[array(string)]} ips array
+* @overvie resolve hostname(e.g. 'baidu.com') into an array of IPv6 address
+* @param hostname {string}
+* @return {table[array(string)]} ips array
 
 ####tcp
 tcp.createServer(port, onconnect[, options])
-@overview create a new tcp server
-@param port {integer|required}
-@param onconnect {function|required}
+* @overview create a new tcp server
+* @param port {integer|required}
+* @param onconnect {function|required}
 ```lua
   local function onconnect(socket, server)
   end
 ```
-@param options {table}
+* @param options {table}
 ```lua
   local options = {
     family = '{integer|default: 4}',
@@ -151,10 +151,10 @@ tcp.createServer(port, onconnect[, options])
 ```
 
 tcp.connect(port[, host, options])
-@overview connect to a host:port and return a new socket
-@param port {integer|required}
-@param host {string}
-@param options {table}
+* @overview connect to a host:port and return a new socket
+* @param port {integer|required}
+* @param host {string}
+* @param options {table}
 ```lua
   local options = {
     family = '{integer|default: 4}',
@@ -165,7 +165,7 @@ tcp.connect(port[, host, options])
     readBufferSize = '{integer|default: 16}'
   }
 ```
-@return {2}
+* @return {2}
   socket {table[object]}
   error {table}
 ```lua
@@ -177,13 +177,13 @@ tcp.connect(port[, host, options])
 ```
 
 tcp.isIP(address)
-@overview test if address is an IPv4 or IPv6 address
-@param address {string}
-@return {integer} IPv4: 4, IPv6: 6, not an address: 0
+* @overview test if address is an IPv4 or IPv6 address
+* @param address {string}
+* @return {integer} IPv4: 4, IPv6: 6, not an address: 0
 
 server:address()
-@overview return the local address of the server
-@return address {table}
+* @overview return the local address of the server
+* @return address {table}
 ```lua
   address = {
     family = '{integer}',
@@ -193,56 +193,56 @@ server:address()
 ```
 
 server:connections()
-@overview return the current connections of the server
-@return {integer}
+* @overview return the current connections of the server
+* @return {integer}
 
 server:close()
-@overview close the server
+* @overview close the server
 
 socket:read(n)
-@overview read n bytes data from read buffer
-@param n {integer} bytes
-@return {2}
+* @overview read n bytes data from read buffer
+* @param n {integer} bytes
+* @return {2}
   data {string}
   error {table}
 
 socket:readline()
-@overview read a line data from read buffer
-@return {2}
+* @overview read a line data from read buffer
+* @return {2}
   data {string}
   error {table}
 
 socket:write(data)
-@overview send data to the socket
-@param data {string|table[array(string)]}
-@return {table}
+* @overview send data to the socket
+* @param data {string|table[array(string)]}
+* @return {table}
 
 socket:localAddress()
-@overview return the local address of the socket
-@return address {table}
+* @overview return the local address of the socket
+* @return address {table}
 
 socket:remoteAddress()
-@overview return the remote address of the socket
-@return address {table}
+* @overview return the remote address of the socket
+* @return address {table}
 
 socket:setTimeout(timeout)
-@overview set timeout milliseconds of inactivity(no read and write) on the socket, when the socket timeout, socket:read(n), socket:readline(), socket:writ(data) will return an error
-@param timeout {integer} [milliseconds]
+* @overview set timeout milliseconds of inactivity(no read and write) on the socket, when the socket timeout, socket:read(n), socket:readline(), socket:writ(data) will return an error
+* @param timeout {integer} [milliseconds]
 
 socket:setNodelay([enable])
-@overview enable/disable the nagle algorithm 
-@param enable {boolean|default: true}
-@return error {table}
+* @overview enable/disable the nagle algorithm 
+* @param enable {boolean|default: true}
+* @return error {table}
 
 socket:setKeepalive([enable][, idle])
-@overview enable/disable keep-alive functionality 
-@param enable {boolean|default: true}
-@parm idle {integer|default : 0} 
-@return error {table}
+* @overview enable/disable keep-alive functionality 
+* @param enable {boolean|default: true}
+* @parm idle {integer|default : 0} 
+* @return error {table}
 
 socket:end()
-@overview half close the socket, the socket write channel is shutdown
-@return error {table}
+* @overview half close the socket, the socket write channel is shutdown
+* @return error {table}
 
 ####http 进行中
 
