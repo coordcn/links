@@ -1233,7 +1233,7 @@ static int links_tcp_socket_set_nodelay(lua_State* L){
   if(lua_type(L, 2) == LUA_TBOOLEAN){
     nodelay = lua_toboolean(L, 2);
   }else{
-    return luaL_argerror(L, 2, "socket:setNodelay(enable) error: enable is [required] and must be [boolean]\n"); 
+    return luaL_argerror(L, 2, "socket:setNodelay(enable) error: enable must be [boolean]\n"); 
   }
 
   int err = uv_tcp_nodelay(&socket->handle, nodelay);

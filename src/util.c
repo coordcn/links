@@ -40,6 +40,6 @@ void links_parse_socket_address(lua_State* L, struct sockaddr_storage* address){
   lua_pushinteger(L, port);
   lua_setfield(L, -2, "port");
   lua_pushstring(L, ip);
-  lua_setfield(L, -2, "ip");
+  lua_setfield(L, -2, "address");
   lua_pushnil(L);
 }

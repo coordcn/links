@@ -14,13 +14,44 @@ static int links_http_create_server(lua_State* L){
   return 1;
 }
 
-/*static int links_cannot_change(lua_State* L){*/
-/*return luaL_error(L, "table fields cannot be changed.");*/
-/*}*/
+static int links_http_get(lua_State* L){
+  printf("test hello.");
+
+  return 1;
+}
+
+static int links_http_head(lua_State* L){
+  printf("test hello.");
+
+  return 1;
+}
+
+static int links_http_post(lua_State* L){
+  printf("test hello.");
+
+  return 1;
+}
+
+static int links_http_upload(lua_State* L){
+  printf("test hello.");
+
+  return 1;
+}
+
+static int links_http_download(lua_State* L){
+  printf("test hello.");
+
+  return 1;
+}
 
 int luaopen_http(lua_State *L){
   luaL_Reg lib[] = {
     { "createServer", links_http_create_server},
+    { "get", links_http_get},
+    { "head", links_http_head},
+    { "post", links_http_post},
+    { "upload", links_http_upload},
+    { "download", links_http_download},
     { "__newindex", links_cannot_change},
     { NULL, NULL}
   };
