@@ -7,6 +7,7 @@ http server base on lua + libuv
 +  [nginx](http://nginx.org/)
 +  [io.js](https://iojs.org/)
 +  [openresty](http://openresty.org/)
++  [luvit](https://luvit.io/)
 +  [aLiLua](http://alilua.com/)
 +  [luajit.io](http://luajit.io/)
 
@@ -249,6 +250,8 @@ socket:end()
 ####websocket
 
 以下模块采用迭代开发模式，逐步完善
+
+####log
 
 ####https
 
